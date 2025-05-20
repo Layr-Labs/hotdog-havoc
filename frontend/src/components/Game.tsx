@@ -165,6 +165,15 @@ function update(this: Phaser.Scene) {
 }
 
 function showTitleScreen(scene: Phaser.Scene) {
+  // Hide hotdogs immediately when entering title state
+  if (hotdogLeft) {
+    hotdogLeft.setVisible(false);
+    hotdogLeft.x = -1000;
+  }
+  if (hotdogRight) {
+    hotdogRight.setVisible(false);
+    hotdogRight.x = scene.scale.width + 1000;
+  }
   // Show the title image in the center, but start above the screen
   if (titleImage) titleImage.destroy();
   const titleFinalY = scene.scale.height / 2;
@@ -285,16 +294,17 @@ function showTitleScreenRest(scene: Phaser.Scene, titleImage: Phaser.GameObjects
   const hotdogScale = 0.5;
   // Left hotdog: left edge at x=-width, bounce to x=0 (fully visible)
   if (hotdogLeft) hotdogLeft.destroy();
-  // Temporarily create at x=0, setOrigin(0, 0.5), setScale, then immediately set x to -displayWidth
   hotdogLeft = scene.add.image(0, y, 'hotdog-title-left');
   hotdogLeft.setOrigin(0, 0.5);
   hotdogLeft.setScale(hotdogScale);
   hotdogLeft.x = -hotdogLeft.displayWidth;
+  hotdogLeft.setVisible(true);
   // Right hotdog: left edge at x=scene width, bounce to x=scene width - width (fully visible)
   if (hotdogRight) hotdogRight.destroy();
   hotdogRight = scene.add.image(scene.scale.width, y, 'hotdog-title-right');
   hotdogRight.setOrigin(0, 0.5);
   hotdogRight.setScale(hotdogScale);
+  hotdogRight.setVisible(true);
   // Calculate final positions after scaling
   scene.time.delayedCall(50, () => {
     if (!hotdogLeft || !hotdogRight) return;

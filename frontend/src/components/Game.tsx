@@ -72,12 +72,14 @@ let connectedAddress: string | null = null;
 let disconnectText: Phaser.GameObjects.Text | null = null;
 let hotdogLeft: Phaser.GameObjects.Image | null = null;
 let hotdogRight: Phaser.GameObjects.Image | null = null;
+let mainMenuImage: Phaser.GameObjects.Image | null = null;
 
 function preload(this: Phaser.Scene) {
   // Load the title image and hotdog images
   this.load.image('title', 'src/images/title.png');
   this.load.image('hotdog-title-left', 'src/images/hotdog-title-left.png');
   this.load.image('hotdog-title-right', 'src/images/hotdog-title-right.png');
+  this.load.image('mainMenu', 'src/images/mainMenu.png');
 }
 
 function create(this: Phaser.Scene) {
@@ -108,12 +110,19 @@ function update(this: Phaser.Scene) {
     if (disconnectText) disconnectText.setVisible(false);
     if (hotdogLeft) hotdogLeft.setVisible(true);
     if (hotdogRight) hotdogRight.setVisible(true);
+    if (mainMenuImage) mainMenuImage.setVisible(false);
   } else if (currentState === GameState.MENU) {
     // Only show wallet address at top center
     if (titleImage) titleImage.setVisible(false);
     if (startText) startText.setVisible(false);
     if (hotdogLeft) hotdogLeft.setVisible(false);
     if (hotdogRight) hotdogRight.setVisible(false);
+    // Show main menu title
+    if (!mainMenuImage) {
+      showMainMenuTitle(this);
+    } else {
+      mainMenuImage.setVisible(true);
+    }
     if (!walletText && connectedAddress) {
       walletText = this.add.text(this.scale.width / 2, 24, connectedAddress, {
         fontFamily: '"Press Start 2P", monospace',
@@ -154,6 +163,7 @@ function update(this: Phaser.Scene) {
         currentState = GameState.TITLE;
         if (walletText) walletText.setVisible(false);
         if (disconnectText) disconnectText.setVisible(false);
+        if (mainMenuImage) { mainMenuImage.setVisible(false); mainMenuImage = null; }
         showTitleScreen(this);
       });
     }
@@ -347,6 +357,40 @@ function drawSkyGradientTexture(scene: Phaser.Scene): boolean {
   }
   scene.textures.addCanvas('sky-gradient', canvas);
   return true;
+}
+
+function showMainMenuTitle(scene: Phaser.Scene) {
+  if (mainMenuImage) mainMenuImage.destroy();
+  // Place at 100px from the top
+  const yFinal = 0;
+  mainMenuImage = scene.add.image(scene.scale.width / 2, -200, 'mainMenu');
+  mainMenuImage.setOrigin(0.5, 0);
+  // Make smaller: max width 60% of screen
+  const maxWidth = scene.scale.width * 0.20;
+  let scale = 1;
+  if (mainMenuImage.width > maxWidth) {
+    scale = maxWidth / mainMenuImage.width;
+    mainMenuImage.setScale(scale);
+  }
+  // Bounce in from above
+  scene.tweens.add({
+    targets: mainMenuImage,
+    y: yFinal,
+    ease: 'Bounce.easeOut',
+    duration: 900,
+    onComplete: () => {
+      // Start floating and pulsing after bounce
+      scene.tweens.add({
+        targets: mainMenuImage,
+        y: `+=20`,
+        scale: scale * 1.08,
+        duration: 1400,
+        ease: 'Sine.easeInOut',
+        yoyo: true,
+        repeat: -1
+      });
+    }
+  });
 }
 
 export default Game; 

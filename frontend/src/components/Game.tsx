@@ -165,9 +165,10 @@ function update(this: Phaser.Scene) {
 }
 
 function showTitleScreen(scene: Phaser.Scene) {
-  // Show the title image in the center
+  // Show the title image in the center, but start above the screen
   if (titleImage) titleImage.destroy();
-  titleImage = scene.add.image(scene.scale.width / 2, scene.scale.height / 2, 'title');
+  const titleFinalY = scene.scale.height / 2;
+  titleImage = scene.add.image(scene.scale.width / 2, -200, 'title');
   titleImage.setOrigin(0.5, 0.5);
   // Optionally, scale down if too large
   const maxWidth = scene.scale.width * 0.8;
@@ -182,99 +183,124 @@ function showTitleScreen(scene: Phaser.Scene) {
     titleImage.setScale(scale);
   }
 
-  // Floating and pulsing animation
+  // Bounce down from top
   scene.tweens.add({
     targets: titleImage,
-    y: `+=30`,
-    scale: scale * 1.08,
-    duration: 1400,
-    ease: 'Sine.easeInOut',
-    yoyo: true,
-    repeat: -1
+    y: titleFinalY,
+    ease: 'Bounce.easeOut',
+    duration: 900,
+    onComplete: () => {
+      // Start floating and pulsing after bounce
+      scene.tweens.add({
+        targets: titleImage,
+        y: `+=30`,
+        scale: scale * 1.08,
+        duration: 1400,
+        ease: 'Sine.easeInOut',
+        yoyo: true,
+        repeat: -1
+      });
+      // Now add the rest of the UI
+      showTitleScreenRest(scene, titleImage, scale);
+    }
   });
+}
 
+function showTitleScreenRest(scene: Phaser.Scene, titleImage: Phaser.GameObjects.Image, scale: number) {
   // Add 16-bit style text below the title image as a button
   if (startText) startText.destroy();
   let textY = titleImage.y + (titleImage.displayHeight / 2) + 40;
   if (!isFinite(textY) || isNaN(textY)) {
     textY = scene.scale.height * 0.7;
   }
-  startText = scene.add.text(scene.scale.width / 2, textY, 'Connect Wallet to Start', {
+  // Start below the screen
+  const startTextY = scene.scale.height + 100;
+  startText = scene.add.text(scene.scale.width / 2, startTextY, 'Connect Wallet to Start', {
     fontFamily: '"Press Start 2P", monospace',
     fontSize: '20px',
     color: '#fff',
     align: 'center',
   });
   startText.setOrigin(0.5, 0);
-  startText.setInteractive({ useHandCursor: true });
   startText.setDepth(10);
-
-  // Hover effect
-  startText.on('pointerover', () => {
-    scene.tweens.add({
-      targets: startText,
-      scale: 1.12,
-      duration: 120,
-      ease: 'Sine.easeOut',
-    });
-    startText.setColor('#ffe066');
- 
-  });
-  startText.on('pointerout', () => {
-    scene.tweens.add({
-      targets: startText,
-      scale: 1,
-      duration: 120,
-      ease: 'Sine.easeIn',
-    });
-    startText.setColor('#fff');
-    ;
-  });
-  // Click effect and wallet connect
-  startText.on('pointerdown', async () => {
-    scene.tweens.add({
-      targets: startText,
-      scale: 0.95,
-      duration: 80,
-      yoyo: true,
-      ease: 'Sine.easeInOut',
-    });
-    // Connect wallet
-    if (typeof window.ethereum !== 'undefined') {
-      try {
-        const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
-        if (accounts.length > 0) {
-          connectedAddress = accounts[0];
-          currentState = GameState.MENU;
-          // Hide title and button
-          if (titleImage) titleImage.setVisible(false);
-          if (startText) startText.setVisible(false);
+  // Bounce in from the bottom
+  scene.tweens.add({
+    targets: startText,
+    y: textY,
+    ease: 'Bounce.easeOut',
+    duration: 900,
+    delay: 200,
+    onComplete: () => {
+      // Enable interactivity and effects after bounce
+      startText.setInteractive({ useHandCursor: true });
+      startText.on('pointerover', () => {
+        scene.tweens.add({
+          targets: startText,
+          scale: 1.12,
+          duration: 120,
+          ease: 'Sine.easeOut',
+        });
+        startText.setColor('#ffe066');
+      });
+      startText.on('pointerout', () => {
+        scene.tweens.add({
+          targets: startText,
+          scale: 1,
+          duration: 120,
+          ease: 'Sine.easeIn',
+        });
+        startText.setColor('#fff');
+      });
+      // Click effect and wallet connect
+      startText.on('pointerdown', async () => {
+        scene.tweens.add({
+          targets: startText,
+          scale: 0.95,
+          duration: 80,
+          yoyo: true,
+          ease: 'Sine.easeInOut',
+        });
+        // Connect wallet
+        if (typeof window.ethereum !== 'undefined') {
+          try {
+            const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+            if (accounts.length > 0) {
+              connectedAddress = accounts[0];
+              currentState = GameState.MENU;
+              if (titleImage) titleImage.setVisible(false);
+              if (startText) startText.setVisible(false);
+            }
+          } catch (error) {
+            // Optionally show error
+          }
+        } else {
+          alert('Please install MetaMask to use this feature');
         }
-      } catch (error) {
-        // Optionally show error
-      }
-    } else {
-      alert('Please install MetaMask to use this feature');
+      });
     }
   });
 
-  // Add hotdog images, animate them in from the sides
+  // Add hotdog images, animate them in from fully off-screen
   const y = scene.scale.height / 2 + (titleImage?.displayHeight || 0) / 2 + 80;
   const hotdogScale = 0.5;
-  // Left hotdog
+  // Left hotdog: left edge at x=-width, bounce to x=0 (fully visible)
   if (hotdogLeft) hotdogLeft.destroy();
-  hotdogLeft = scene.add.image(-200, y, 'hotdog-title-left');
+  // Temporarily create at x=0, setOrigin(0, 0.5), setScale, then immediately set x to -displayWidth
+  hotdogLeft = scene.add.image(0, y, 'hotdog-title-left');
   hotdogLeft.setOrigin(0, 0.5);
   hotdogLeft.setScale(hotdogScale);
-  // Right hotdog
+  hotdogLeft.x = -hotdogLeft.displayWidth;
+  // Right hotdog: left edge at x=scene width, bounce to x=scene width - width (fully visible)
   if (hotdogRight) hotdogRight.destroy();
-  hotdogRight = scene.add.image(scene.scale.width + 200, y, 'hotdog-title-right');
-  hotdogRight.setOrigin(1, 0.5);
+  hotdogRight = scene.add.image(scene.scale.width, y, 'hotdog-title-right');
+  hotdogRight.setOrigin(0, 0.5);
   hotdogRight.setScale(hotdogScale);
   // Calculate final positions after scaling
   scene.time.delayedCall(50, () => {
+    if (!hotdogLeft || !hotdogRight) return;
+    hotdogLeft.x = -hotdogLeft.displayWidth;
     const leftTargetX = 0;
-    const rightTargetX = scene.scale.width;
+    const rightTargetX = scene.scale.width - hotdogRight.displayWidth;
     scene.tweens.add({
       targets: hotdogLeft,
       x: leftTargetX,

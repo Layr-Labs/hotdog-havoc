@@ -73,6 +73,7 @@ let disconnectText: Phaser.GameObjects.Text | null = null;
 let hotdogLeft: Phaser.GameObjects.Image | null = null;
 let hotdogRight: Phaser.GameObjects.Image | null = null;
 let mainMenuImage: Phaser.GameObjects.Image | null = null;
+let menuOptionTexts: Phaser.GameObjects.Text[] = [];
 
 function preload(this: Phaser.Scene) {
   // Load the title image and hotdog images
@@ -164,6 +165,8 @@ function update(this: Phaser.Scene) {
         if (walletText) walletText.setVisible(false);
         if (disconnectText) disconnectText.setVisible(false);
         if (mainMenuImage) { mainMenuImage.setVisible(false); mainMenuImage = null; }
+        menuOptionTexts.forEach(t => t.destroy());
+        menuOptionTexts = [];
         showTitleScreen(this);
       });
     }
@@ -184,6 +187,10 @@ function showTitleScreen(scene: Phaser.Scene) {
     hotdogRight.setVisible(false);
     hotdogRight.x = scene.scale.width + 1000;
   }
+  // Destroy menu options if present
+  menuOptionTexts.forEach(t => t.destroy());
+  menuOptionTexts = [];
+  if (mainMenuImage) { mainMenuImage.setVisible(false); mainMenuImage = null; }
   // Show the title image in the center, but start above the screen
   if (titleImage) titleImage.destroy();
   const titleFinalY = scene.scale.height / 2;
@@ -361,11 +368,13 @@ function drawSkyGradientTexture(scene: Phaser.Scene): boolean {
 
 function showMainMenuTitle(scene: Phaser.Scene) {
   if (mainMenuImage) mainMenuImage.destroy();
-  // Place at 100px from the top
+  menuOptionTexts.forEach(t => t.destroy());
+  menuOptionTexts = [];
+  // Place at 0px from the top
   const yFinal = 0;
   mainMenuImage = scene.add.image(scene.scale.width / 2, -200, 'mainMenu');
   mainMenuImage.setOrigin(0.5, 0);
-  // Make smaller: max width 60% of screen
+  // Make smaller: max width 20% of screen
   const maxWidth = scene.scale.width * 0.20;
   let scale = 1;
   if (mainMenuImage.width > maxWidth) {
@@ -388,6 +397,49 @@ function showMainMenuTitle(scene: Phaser.Scene) {
         ease: 'Sine.easeInOut',
         yoyo: true,
         repeat: -1
+      });
+      // Add menu options below
+      const options = ['Join Game', 'Create Game', 'Level Editor'];
+      const startY = yFinal + mainMenuImage.displayHeight + 40;
+      const spacing = 48;
+      options.forEach((label, i) => {
+        // Start well below the viewport
+        const initialY = scene.scale.height + 100;
+        const opt = scene.add.text(scene.scale.width / 2, initialY, label, {
+          fontFamily: '"Press Start 2P", monospace',
+          fontSize: '20px',
+          color: '#fff',
+          align: 'center',
+        });
+        opt.setOrigin(0.5, 0);
+        opt.setInteractive({ useHandCursor: true });
+        scene.tweens.add({
+          targets: opt,
+          y: startY + i * spacing,
+          ease: 'Bounce.easeOut',
+          duration: 700,
+          delay: 200 + i * 100
+        });
+        // Hover effect
+        opt.on('pointerover', () => {
+          scene.tweens.add({
+            targets: opt,
+            scale: 1.12,
+            duration: 120,
+            ease: 'Sine.easeOut',
+          });
+          opt.setColor('#ffe066');
+        });
+        opt.on('pointerout', () => {
+          scene.tweens.add({
+            targets: opt,
+            scale: 1,
+            duration: 120,
+            ease: 'Sine.easeIn',
+          });
+          opt.setColor('#fff');
+        });
+        menuOptionTexts.push(opt);
       });
     }
   });

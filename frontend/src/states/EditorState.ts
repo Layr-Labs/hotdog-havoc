@@ -4,23 +4,11 @@ import { GameStateType } from './GameState';
 import { GameEventEmitter, GameEventType } from './GameEvents';
 import { createSkyGradient } from '../utils/gradientUtils';
 
-interface Floor {
-  x1: number;
-  y1: number;
-  x2: number;
-  y2: number;
-}
-
 export class EditorState extends BaseState {
   private backButton: Phaser.GameObjects.Text | null = null;
   private bgImage: Phaser.GameObjects.Image | null = null;
   private coordText: Phaser.GameObjects.Text | null = null;
   private gridGraphics: Phaser.GameObjects.Graphics | null = null;
-  private floorPoints: { x: number; y: number }[] = [];
-  private floors: Floor[] = [];
-  private endpointCircles: Phaser.GameObjects.Arc[] = [];
-  private floorPolygons: Phaser.GameObjects.GameObject[] = [];
-  private shouldIgnoreNextPointerDown: boolean = false;
 
   protected onCreate(): void {
     this.setupBackground();
@@ -28,17 +16,7 @@ export class EditorState extends BaseState {
     this.setupBackButton();
     this.setupCoordDisplay();
     this.scene.input.on('pointermove', this.updateCoordDisplay, this);
-    this.scene.input.on('pointerdown', this.handlePointerDown, this);
     this.scene.scale.on('resize', this.handleResize, this);
-    this.shouldIgnoreNextPointerDown = true;
-    // Load soil texture if not already loaded
-    if (!this.scene.textures.exists('soil1')) {
-      this.scene.load.image('soil1', 'src/images/soil1.png');
-      this.scene.load.once('complete', () => {
-        this.redrawFloors();
-      });
-      this.scene.load.start();
-    }
   }
 
   protected onUpdate(): void {
@@ -50,10 +28,7 @@ export class EditorState extends BaseState {
     if (this.backButton) this.backButton.destroy();
     if (this.coordText) this.coordText.destroy();
     if (this.gridGraphics) this.gridGraphics.destroy();
-    this.endpointCircles.forEach(c => c.destroy());
-    this.floorPolygons.forEach(p => p.destroy());
     this.scene.input.off('pointermove', this.updateCoordDisplay, this);
-    this.scene.input.off('pointerdown', this.handlePointerDown, this);
     this.scene.scale.off('resize', this.handleResize, this);
   }
 
@@ -89,7 +64,6 @@ export class EditorState extends BaseState {
 
   private handleResize(): void {
     this.drawGrid();
-    this.redrawFloors();
   }
 
   private setupBackButton(): void {
@@ -157,117 +131,5 @@ export class EditorState extends BaseState {
     const x = Math.round(pointer.x);
     const y = Math.round(this.scene.scale.height - pointer.y);
     this.coordText.setText(`(${x}, ${y})`);
-  }
-
-  private handlePointerDown(pointer: Phaser.Input.Pointer): void {
-    if (this.shouldIgnoreNextPointerDown) {
-      this.shouldIgnoreNextPointerDown = false;
-      return;
-    }
-    const x = Math.round(pointer.x);
-    const y = Math.round(this.scene.scale.height - pointer.y);
-    if (this.floorPoints.length === 0) {
-      this.floorPoints.push({ x, y });
-      this.drawEndpointCircle(x, y);
-    } else if (this.floorPoints.length === 1) {
-      this.floorPoints.push({ x, y });
-      this.drawEndpointCircle(x, y);
-      // Store the floor
-      const [p1, p2] = this.floorPoints;
-      this.floors.push({ x1: p1.x, y1: p1.y, x2: p2.x, y2: p2.y });
-      this.floorPoints = [];
-      this.redrawFloors();
-      // Remove endpoint circles after floor is created
-      this.endpointCircles.forEach(c => c.destroy());
-      this.endpointCircles = [];
-    }
-  }
-
-  private drawEndpointCircle(x: number, y: number): void {
-    const circle = this.scene.add.circle(x, this.scene.scale.height - y, 7, 0xff3333, 1);
-    circle.setDepth(10);
-    this.endpointCircles.push(circle);
-    this.addGameObject(circle);
-  }
-
-  private redrawFloors(): void {
-    // Remove old polygons
-    this.floorPolygons.forEach(p => p.destroy());
-    this.floorPolygons = [];
-    // Draw all floors
-    for (const floor of this.floors) {
-      this.drawFloorPolygon(floor);
-    }
-  }
-
-  private drawFloorPolygon(floor: Floor): void {
-    const { x1, y1, x2, y2 } = floor;
-    const h = this.scene.scale.height;
-    // Convert to Phaser's y-down coordinates
-    const p1 = { x: x1, y: h - y1 };
-    const p2 = { x: x2, y: h - y2 };
-    const p3 = { x: x2, y: h - 0 };
-    const p4 = { x: x1, y: h - 0 };
-    const points = [p1, p2, p3, p4];
-
-    // Calculate bounding box
-    const minX = Math.min(...points.map(p => p.x));
-    const maxX = Math.max(...points.map(p => p.x));
-    const minY = Math.min(...points.map(p => p.y));
-    const maxY = Math.max(...points.map(p => p.y));
-    const width = maxX - minX;
-    const height = maxY - minY;
-
-    // Draw the soil texture tiled as a rectangle under the polygon
-    let rt: Phaser.GameObjects.RenderTexture | null = null;
-    if (this.scene.textures.exists('soil1')) {
-      const soilFrame = this.scene.textures.get('soil1').getSourceImage() as HTMLImageElement;
-      const tileW = soilFrame.width;
-      const tileH = soilFrame.height;
-      rt = this.scene.make.renderTexture({ x: minX, y: minY, width: width, height: height });
-      rt.setOrigin(0, 0);
-      for (let tx = 0; tx < width; tx += tileW) {
-        for (let ty = 0; ty < height; ty += tileH) {
-          rt.draw('soil1', tx, ty);
-        }
-      }
-      rt.setDepth(4);
-      this.scene.add.existing(rt);
-      this.floorPolygons.push(rt);
-      this.addGameObject(rt);
-    }
-
-    // Create a mask shape in local coordinates, positioned at (minX, minY)
-    const maskGraphics = this.scene.make.graphics({ x: minX, y: minY });
-    maskGraphics.fillStyle(0x00ff00, 0.3); // semi-transparent green for debug
-    maskGraphics.beginPath();
-    maskGraphics.moveTo(points[0].x - minX, points[0].y - minY);
-    for (let i = 1; i < points.length; i++) {
-      maskGraphics.lineTo(points[i].x - minX, points[i].y - minY);
-    }
-    maskGraphics.closePath();
-    maskGraphics.fillPath();
-    // DEBUG: add maskGraphics to the scene to visualize the mask
-    this.scene.add.existing(maskGraphics);
-
-    // Apply the mask to the render texture
-    if (rt) {
-      rt.setMask(maskGraphics.createGeometryMask());
-    }
-    // maskGraphics.destroy(); // keep for debug
-
-    // Optionally, draw an outline for the polygon
-    const outline = this.scene.add.graphics();
-    outline.lineStyle(2, 0x000000, 0.5);
-    outline.beginPath();
-    outline.moveTo(p1.x, p1.y);
-    outline.lineTo(p2.x, p2.y);
-    outline.lineTo(p3.x, p3.y);
-    outline.lineTo(p4.x, p4.y);
-    outline.closePath();
-    outline.strokePath();
-    outline.setDepth(6);
-    this.floorPolygons.push(outline);
-    this.addGameObject(outline);
   }
 } 

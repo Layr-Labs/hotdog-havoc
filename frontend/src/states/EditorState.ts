@@ -218,12 +218,13 @@ export class EditorState extends BaseState {
     const width = maxX - minX;
     const height = maxY - minY;
 
-    // Draw the soil texture tiled as a rectangle under the polygon (no mask)
+    // Draw the soil texture tiled as a rectangle under the polygon
+    let rt: Phaser.GameObjects.RenderTexture | null = null;
     if (this.scene.textures.exists('soil1')) {
       const soilFrame = this.scene.textures.get('soil1').getSourceImage() as HTMLImageElement;
       const tileW = soilFrame.width;
       const tileH = soilFrame.height;
-      const rt = this.scene.make.renderTexture({ x: minX, y: minY, width: width, height: height });
+      rt = this.scene.make.renderTexture({ x: minX, y: minY, width: width, height: height });
       rt.setOrigin(0, 0);
       for (let tx = 0; tx < width; tx += tileW) {
         for (let ty = 0; ty < height; ty += tileH) {
@@ -235,6 +236,25 @@ export class EditorState extends BaseState {
       this.floorPolygons.push(rt);
       this.addGameObject(rt);
     }
+
+    // Create a mask shape in local coordinates, positioned at (minX, minY)
+    const maskGraphics = this.scene.make.graphics({ x: minX, y: minY });
+    maskGraphics.fillStyle(0x00ff00, 0.3); // semi-transparent green for debug
+    maskGraphics.beginPath();
+    maskGraphics.moveTo(points[0].x - minX, points[0].y - minY);
+    for (let i = 1; i < points.length; i++) {
+      maskGraphics.lineTo(points[i].x - minX, points[i].y - minY);
+    }
+    maskGraphics.closePath();
+    maskGraphics.fillPath();
+    // DEBUG: add maskGraphics to the scene to visualize the mask
+    this.scene.add.existing(maskGraphics);
+
+    // Apply the mask to the render texture
+    if (rt) {
+      rt.setMask(maskGraphics.createGeometryMask());
+    }
+    // maskGraphics.destroy(); // keep for debug
 
     // Optionally, draw an outline for the polygon
     const outline = this.scene.add.graphics();

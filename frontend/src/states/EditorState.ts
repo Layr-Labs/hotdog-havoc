@@ -218,46 +218,23 @@ export class EditorState extends BaseState {
     const width = maxX - minX;
     const height = maxY - minY;
 
-    // Create a mask shape in local coordinates, positioned at (0, 0)
-    const maskGraphics = this.scene.make.graphics({ x: 0, y: 0 });
-    maskGraphics.fillStyle(0xffffff, 1);
-    maskGraphics.beginPath();
-    maskGraphics.moveTo(points[0].x - minX, points[0].y - minY);
-    for (let i = 1; i < points.length; i++) {
-      maskGraphics.lineTo(points[i].x - minX, points[i].y - minY);
-    }
-    maskGraphics.closePath();
-    maskGraphics.fillPath();
-
-    // Create a RenderTexture to draw the soil texture
-    const rt = this.scene.make.renderTexture({ x: minX, y: minY, width: width, height: height });
-
-    // Draw a fallback color with alpha for debugging
-    const fallback = this.scene.add.graphics();
-    fallback.fillStyle(0x8d6748, 0.5);
-    fallback.fillRect(0, 0, width, height);
-    rt.draw(fallback, 0, 0);
-    fallback.destroy();
-
-    // Draw the soil texture tiled
+    // Draw the soil texture tiled as a rectangle under the polygon (no mask)
     if (this.scene.textures.exists('soil1')) {
       const soilFrame = this.scene.textures.get('soil1').getSourceImage() as HTMLImageElement;
       const tileW = soilFrame.width;
       const tileH = soilFrame.height;
+      const rt = this.scene.make.renderTexture({ x: minX, y: minY, width: width, height: height });
+      rt.setOrigin(0, 0);
       for (let tx = 0; tx < width; tx += tileW) {
         for (let ty = 0; ty < height; ty += tileH) {
           rt.draw('soil1', tx, ty);
         }
       }
+      rt.setDepth(4);
+      this.scene.add.existing(rt);
+      this.floorPolygons.push(rt);
+      this.addGameObject(rt);
     }
-
-    // Apply the mask (mask graphics at 0,0, render texture at minX,minY)
-    rt.setMask(maskGraphics.createGeometryMask());
-    rt.setDepth(5);
-    this.scene.add.existing(rt);
-    this.floorPolygons.push(rt);
-    this.addGameObject(rt);
-    maskGraphics.destroy();
 
     // Optionally, draw an outline for the polygon
     const outline = this.scene.add.graphics();

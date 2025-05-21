@@ -7,6 +7,7 @@ enum GameState {
   TITLE = 'title',
   MENU = 'menu',
   GAME = 'game',
+  EDITOR = 'editor',
 }
 
 const Game = () => {
@@ -74,6 +75,7 @@ let hotdogLeft: Phaser.GameObjects.Image | null = null;
 let hotdogRight: Phaser.GameObjects.Image | null = null;
 let mainMenuImage: Phaser.GameObjects.Image | null = null;
 let menuOptionTexts: Phaser.GameObjects.Text[] = [];
+let backButton: Phaser.GameObjects.Text | null = null;
 
 function preload(this: Phaser.Scene) {
   // Load the title image and hotdog images
@@ -173,6 +175,63 @@ function update(this: Phaser.Scene) {
     if (disconnectText) {
       disconnectText.setPosition(this.scale.width - 32, 24);
       disconnectText.setVisible(true);
+    }
+  } else if (currentState === GameState.EDITOR) {
+    // Hide menu elements
+    if (titleImage) titleImage.setVisible(false);
+    if (startText) startText.setVisible(false);
+    if (hotdogLeft) hotdogLeft.setVisible(false);
+    if (hotdogRight) hotdogRight.setVisible(false);
+    if (mainMenuImage) mainMenuImage.setVisible(false);
+    if (walletText) walletText.setVisible(false);
+    if (disconnectText) disconnectText.setVisible(false);
+    menuOptionTexts.forEach(t => t.setVisible(false));
+
+    // Show back button if not already created
+    if (!backButton) {
+      backButton = this.add.text(this.scale.width - 32, 24, 'Back', {
+        fontFamily: '"Press Start 2P", monospace',
+        fontSize: '16px',
+        color: '#fff',
+        align: 'right',
+      });
+      backButton.setOrigin(1, 0);
+      backButton.setInteractive({ useHandCursor: true });
+      
+      // Hover effect
+      backButton.on('pointerover', () => {
+        if (backButton) {
+          backButton.setColor('#ffe066');
+          this.tweens.add({ targets: backButton, scale: 1.12, duration: 120, ease: 'Sine.easeOut' });
+        }
+      });
+      backButton.on('pointerout', () => {
+        if (backButton) {
+          backButton.setColor('#fff');
+          this.tweens.add({ targets: backButton, scale: 1, duration: 120, ease: 'Sine.easeIn' });
+        }
+      });
+      backButton.on('pointerdown', () => {
+        this.tweens.add({ targets: backButton, scale: 0.95, duration: 80, yoyo: true, ease: 'Sine.easeInOut' });
+        // Return to menu
+        currentState = GameState.MENU;
+        if (backButton) {
+          backButton.destroy();
+          backButton = null;
+        }
+        // Reset and re-animate the main menu
+        if (mainMenuImage) {
+          mainMenuImage.destroy();
+          mainMenuImage = null;
+        }
+        menuOptionTexts.forEach(t => t.destroy());
+        menuOptionTexts = [];
+        showMainMenuTitle(this);
+      });
+    }
+    if (backButton) {
+      backButton.setPosition(this.scale.width - 32, 24);
+      backButton.setVisible(true);
     }
   }
 }
@@ -438,6 +497,20 @@ function showMainMenuTitle(scene: Phaser.Scene) {
             ease: 'Sine.easeIn',
           });
           opt.setColor('#fff');
+        });
+        opt.on('pointerdown', () => {
+          scene.tweens.add({
+            targets: opt,
+            scale: 0.95,
+            duration: 80,
+            yoyo: true,
+            ease: 'Sine.easeInOut',
+          });
+          
+          if (label === 'Level Editor') {
+            currentState = GameState.EDITOR;
+          }
+          // Add other menu option handlers here
         });
         menuOptionTexts.push(opt);
       });

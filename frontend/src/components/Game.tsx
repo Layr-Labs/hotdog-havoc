@@ -67,8 +67,7 @@ function preload(this: Phaser.Scene) {
   this.load.image('mainMenu', 'src/images/mainMenu.png');
   this.load.image('hotdog-title-left', 'src/images/hotdog-title-left.png');
   this.load.image('hotdog-title-right', 'src/images/hotdog-title-right.png');
-  this.load.image('soil1', 'src/images/soil1.png');
-  this.load.image('grass', 'src/images/grass.png');
+  this.load.image('land', 'src/images/land.png');
 }
 
 function create(this: Phaser.Scene) {

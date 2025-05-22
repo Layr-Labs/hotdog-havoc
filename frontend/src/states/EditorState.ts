@@ -28,7 +28,8 @@ export class EditorState extends BaseState {
   private tilemap: Phaser.Tilemaps.Tilemap | null = null;
   private layer: Phaser.Tilemaps.TilemapLayer | null = null;
   private readonly TILEMAP_HEIGHT = 50; // Adjust as needed
-  private soilTileIndex: number = 0;
+  private landTileIndex: number = 0;
+  private worldMap: boolean[][] = [];
 
   protected onCreate(): void {
     this.shouldIgnoreNextClick = true;
@@ -101,18 +102,54 @@ export class EditorState extends BaseState {
   }
 
   private getSoilTileIndex(x: number, y: number): number {
-    // 16x16 tiles in the 256x256 texture
-    return this.soilTileIndex + (y % 16) * 16 + (x % 16);
+    // Soil tiles start at index 16 (after the 16 grass tiles)
+    return 16 + ((y % 16) * 16 + (x % 16));
+  }
+
+  private getGrassTileIndex(x: number): number {
+    // Grass tiles are the first 16 tiles (0-15)
+    return x % 16;
+  }
+
+  private initializeWorldMap() {
+    // 200x100 (width x height) world
+    const width = this.WORLD_WIDTH / this.BLOCK_SIZE;
+    this.worldMap = [];
+    for (let x = 0; x < width; x++) {
+      this.worldMap[x] = [];
+      for (let y = 0; y < this.TILEMAP_HEIGHT; y++) {
+        this.worldMap[x][y] = false;
+      }
+    }
   }
 
   private addBlockAtPointer(pointer: Phaser.Input.Pointer, deleteMode = false): void {
     if (!this.tilemap || !this.layer) return;
     const blockX = Math.floor((pointer.x + this.cameraOffsetX) / this.BLOCK_SIZE);
     const blockY = Math.floor((pointer.y - this.layer.y) / this.BLOCK_SIZE);
+    if (blockX < 0 || blockX >= this.worldMap.length || blockY < 0 || blockY >= this.TILEMAP_HEIGHT) return;
     if (deleteMode) {
-      this.layer.removeTileAt(blockX, blockY);
+      this.worldMap[blockX][blockY] = false;
     } else {
-      this.layer.putTileAt(this.getSoilTileIndex(blockX, blockY), blockX, blockY);
+      this.worldMap[blockX][blockY] = true;
+    }
+    this.redrawWorldTiles();
+  }
+
+  private redrawWorldTiles(): void {
+    if (!this.layer) return;
+    this.layer.fill(-1); // Clear all tiles
+    for (let x = 0; x < this.worldMap.length; x++) {
+      for (let y = 0; y < this.TILEMAP_HEIGHT; y++) {
+        if (this.worldMap[x][y]) {
+          // Place soil
+          this.layer.putTileAt(this.getSoilTileIndex(x, y), x, y);
+          // If there is no soil above, place grass (uncomment if needed)
+           if (y > 0 && !this.worldMap[x][y - 1]) {
+             this.layer.putTileAt(this.getGrassTileIndex(x), x, y - 1);
+           }
+        }
+      }
     }
   }
 
@@ -253,18 +290,8 @@ export class EditorState extends BaseState {
   }
 
   private setupTilemap(): void {
-    // Save current soil tile positions if layer exists
-    let placedBlocks: {x: number, y: number}[] = [];
-    if (this.layer) {
-      for (let x = 0; x < this.WORLD_WIDTH / this.BLOCK_SIZE; x++) {
-        for (let y = 0; y < this.TILEMAP_HEIGHT; y++) {
-          const tile = this.layer.getTileAt(x, y);
-          if (tile && tile.index >= this.soilTileIndex && tile.index < this.soilTileIndex + 256) {
-            placedBlocks.push({x, y});
-          }
-        }
-      }
-    }
+    // Save worldMap if it exists
+    let prevWorldMap = this.worldMap;
     // Remove old tilemap/layer if any
     if (this.layer) this.layer.destroy();
     if (this.tilemap) this.tilemap.destroy();
@@ -275,22 +302,26 @@ export class EditorState extends BaseState {
       width: this.WORLD_WIDTH / this.BLOCK_SIZE,
       height: this.TILEMAP_HEIGHT,
     });
-    // Add only the soil tileset
-    const soilTileset = this.tilemap.addTilesetImage('soil1', undefined, this.BLOCK_SIZE, this.BLOCK_SIZE, 0, 0);
-    if (!soilTileset) return;
-    // Create a blank layer with only soil
-    this.layer = this.tilemap.createBlankLayer('layer1', [soilTileset], 0, 0);
+    // Add the combined land tileset
+    const landTileset = this.tilemap.addTilesetImage('land', undefined, this.BLOCK_SIZE, this.BLOCK_SIZE, 0, 0);
+    if (!landTileset) return;
+    // Create a blank layer with the land tileset
+    this.layer = this.tilemap.createBlankLayer('layer1', [landTileset], 0, 0);
     if (this.layer) {
       this.layer.setDepth(-20);
       // Anchor the tilemap to the bottom of the screen
       this.layer.y = this.scene.scale.height - (this.TILEMAP_HEIGHT * this.BLOCK_SIZE);
-      // Restore placed blocks
-      for (const {x, y} of placedBlocks) {
-        this.layer.putTileAt(this.getSoilTileIndex(x, y), x, y);
-      }
     }
-    // Set tile index for soil
-    this.soilTileIndex = soilTileset.firstgid;
+    // Set tile index for land tileset
+    this.landTileIndex = landTileset.firstgid;
+    console.log("landTileIndex", this.landTileIndex);
+    // Restore or initialize worldMap
+    if (prevWorldMap && prevWorldMap.length) {
+      this.worldMap = prevWorldMap;
+    } else {
+      this.initializeWorldMap();
+    }
+    this.redrawWorldTiles();
   }
 
   private scrollCamera(direction: -1 | 1) {

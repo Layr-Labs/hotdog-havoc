@@ -23,8 +23,12 @@ export class EditorState extends BaseState {
   private maskRenderTexture: Phaser.GameObjects.RenderTexture | null = null;
   private grassRenderTexture: Phaser.GameObjects.RenderTexture | null = null;
   private cameraOffsetX: number = 0;
-  private readonly LEVEL_WIDTH_BLOCKS = 200;
+  private readonly WORLD_WIDTH = 3200; // 200 blocks * 16px
   private readonly BLOCK_SIZE = 16;
+  private tilemap: Phaser.Tilemaps.Tilemap | null = null;
+  private layer: Phaser.Tilemaps.TilemapLayer | null = null;
+  private readonly TILEMAP_HEIGHT = 50; // Adjust as needed
+  private soilTileIndex: number = 0;
 
   protected onCreate(): void {
     this.shouldIgnoreNextClick = true;
@@ -32,16 +36,25 @@ export class EditorState extends BaseState {
     this.drawGrid();
     this.setupBackButton();
     this.setupCoordDisplay();
-    this.setupSoilAndMask();
+    this.setupTilemap();
     this.scene.input.on('pointermove', this.updateCoordDisplay, this);
     this.scene.input.on('pointerdown', this.handleBlockPointerDown, this);
     this.scene.input.on('pointermove', this.handleBlockPointerMove, this);
     this.scene.input.on('pointerup', this.handleBlockPointerUp, this);
     this.scene.scale.on('resize', this.handleResize, this);
-    this.scene.input.keyboard.on('keydown-LEFT', () => this.scrollCamera(-1), this);
-    this.scene.input.keyboard.on('keydown-RIGHT', () => this.scrollCamera(1), this);
+    if (this.scene.input.keyboard) {
+      this.scene.input.keyboard.on('keydown-LEFT', () => this.scrollCamera(-1), this);
+      this.scene.input.keyboard.on('keydown-RIGHT', () => this.scrollCamera(1), this);
+    }
     // Mouse wheel scroll
-    this.scene.game.canvas.addEventListener('wheel', this.handleWheelScroll, { passive: false });
+    if (this.scene.game.canvas) {
+      this.scene.game.canvas.addEventListener('wheel', this.handleWheelScroll, { passive: false });
+    }
+
+    // Set up camera bounds
+    const height = this.scene.scale.height;
+    this.scene.cameras.main.setBounds(0, 0, this.WORLD_WIDTH, height);
+    this.scene.cameras.main.scrollX = this.cameraOffsetX;
   }
 
   protected onUpdate(): void {
@@ -87,63 +100,44 @@ export class EditorState extends BaseState {
     this.isDrawing = false;
   }
 
-  private addBlockAtPointer(pointer: Phaser.Input.Pointer, deleteMode = false): void {
-    const blockX = Math.floor((pointer.x + this.cameraOffsetX) / this.BLOCK_SIZE);
-    const blockY = Math.floor((this.scene.scale.height - pointer.y) / this.BLOCK_SIZE);
-    const blockKey = `${blockX},${blockY}`;
-    if (deleteMode) {
-      if (this.blocks.has(blockKey)) {
-        this.blocks.delete(blockKey);
-        this.drawBlocks();
-      }
-    } else {
-      if (!this.blocks.has(blockKey)) {
-        this.blocks.add(blockKey);
-        this.drawBlocks();
-      }
-    }
+  private getSoilTileIndex(x: number, y: number): number {
+    // 16x16 tiles in the 256x256 texture
+    return this.soilTileIndex + (y % 16) * 16 + (x % 16);
   }
 
-  private drawBlocks(): void {
-    if (!this.maskRenderTexture || !this.grassRenderTexture) return;
-    this.maskRenderTexture.clear();
-    this.grassRenderTexture.clear();
-    for (const key of this.blocks) {
-      const [blockX, blockY] = key.split(',').map(Number);
-      // Convert world (block) coordinates to screen coordinates
-      const screenX = blockX * this.BLOCK_SIZE - this.cameraOffsetX;
-      const screenY = this.scene.scale.height - (blockY + 1) * this.BLOCK_SIZE;
-      if (screenX + this.BLOCK_SIZE < 0 || screenX > this.scene.scale.width) continue; // Only draw visible blocks
-      this.maskRenderTexture.fill(0xffffff, 1, screenX, screenY, this.BLOCK_SIZE, this.BLOCK_SIZE);
-      const aboveKey = `${blockX},${blockY+1}`;
-      if (!this.blocks.has(aboveKey)) {
-        this.grassRenderTexture.fill(0xffffff, 1, screenX, screenY - this.BLOCK_SIZE, this.BLOCK_SIZE, this.BLOCK_SIZE);
-      }
+  private addBlockAtPointer(pointer: Phaser.Input.Pointer, deleteMode = false): void {
+    if (!this.tilemap || !this.layer) return;
+    const blockX = Math.floor((pointer.x + this.cameraOffsetX) / this.BLOCK_SIZE);
+    const blockY = Math.floor((pointer.y - this.layer.y) / this.BLOCK_SIZE);
+    if (deleteMode) {
+      this.layer.removeTileAt(blockX, blockY);
+    } else {
+      this.layer.putTileAt(this.getSoilTileIndex(blockX, blockY), blockX, blockY);
     }
   }
 
   private setupBackground(): void {
+    if (this.bgImage) this.bgImage.destroy();
     this.bgImage = createSkyGradient(this.scene);
     if (this.bgImage) {
+      this.bgImage.setScrollFactor(0);
+      this.bgImage.setDepth(-100);
       this.addGameObject(this.bgImage);
     }
   }
 
   private drawGrid(): void {
     if (this.gridGraphics) this.gridGraphics.destroy();
-    const width = this.scene.scale.width;
+    const width = this.WORLD_WIDTH;
     const height = this.scene.scale.height;
     const grid = this.scene.add.graphics();
     grid.setDepth(-50);
     grid.lineStyle(1, 0x9b59b6, 0.25);
-    // Vertical lines (only for visible part)
-    const startBlock = Math.floor(this.cameraOffsetX / this.BLOCK_SIZE);
-    const endBlock = Math.ceil((this.cameraOffsetX + width) / this.BLOCK_SIZE);
-    for (let x = startBlock; x <= endBlock; x++) {
-      const screenX = x * this.BLOCK_SIZE - this.cameraOffsetX;
+    // Vertical lines for the whole world
+    for (let x = 0; x <= width; x += this.BLOCK_SIZE) {
       grid.beginPath();
-      grid.moveTo(screenX, 0);
-      grid.lineTo(screenX, height);
+      grid.moveTo(x, 0);
+      grid.lineTo(x, height);
       grid.strokePath();
     }
     // Horizontal lines
@@ -168,37 +162,20 @@ export class EditorState extends BaseState {
     }
     this.bgImage = createSkyGradient(this.scene);
     if (this.bgImage) {
-      this.bgImage.setSize(width, height);
+      this.bgImage.setScrollFactor(0);
+      this.bgImage.setDepth(-100);
       this.addGameObject(this.bgImage);
     }
 
-    // Destroy and null out soil, grass, and render textures
-    if (this.soilTileSprite) {
-      this.soilTileSprite.destroy();
-      this.soilTileSprite = null;
+    // Re-setup tilemap
+    this.setupTilemap();
+    // If layer exists, anchor it to the bottom after resize
+    if (this.layer) {
+      this.layer.y = this.scene.scale.height - (this.TILEMAP_HEIGHT * this.BLOCK_SIZE);
     }
-    if (this.grassTileSprite) {
-      this.grassTileSprite.destroy();
-      this.grassTileSprite = null;
-    }
-    if (this.maskRenderTexture) {
-      this.maskRenderTexture.destroy();
-      this.maskRenderTexture = null;
-    }
-    if (this.grassRenderTexture) {
-      this.grassRenderTexture.destroy();
-      this.grassRenderTexture = null;
-    }
-
-    // Re-setup soil, grass, and masks
-    this.setupSoilAndMask();
 
     // Redraw grid first
-    this.updateTileSpriteOffsets();
     this.drawGrid();
-
-    // Redraw blocks and masks after all resizing/clearing
-    this.drawBlocks();
 
     // Update back button position
     if (this.backButton) {
@@ -216,6 +193,7 @@ export class EditorState extends BaseState {
     this.addGameObject(this.backButton);
     this.backButton.setOrigin(1, 0);
     this.backButton.setInteractive({ useHandCursor: true });
+    this.backButton.setScrollFactor(0);
     this.backButton.on('pointerover', () => {
       if (this.backButton) {
         this.backButton.setColor('#ffe066');
@@ -263,44 +241,60 @@ export class EditorState extends BaseState {
     });
     this.coordText.setOrigin(0, 0);
     this.coordText.setDepth(20);
+    this.coordText.setScrollFactor(0);
     this.addGameObject(this.coordText);
   }
 
   private updateCoordDisplay(pointer: Phaser.Input.Pointer): void {
-    if (!this.coordText) return;
+    if (!this.coordText || !this.layer) return;
     const blockX = Math.floor((pointer.x + this.cameraOffsetX) / this.BLOCK_SIZE);
-    const blockY = Math.floor((this.scene.scale.height - pointer.y) / this.BLOCK_SIZE);
+    const blockY = Math.floor((pointer.y - this.layer.y) / this.BLOCK_SIZE);
     this.coordText.setText(`(${blockX}, ${blockY})`);
   }
 
-  private setupSoilAndMask(): void {
-    const width = this.scene.scale.width;
-    const height = this.scene.scale.height;
-
-    // Create the soil TileSprite and the grass TileSprite
-    this.soilTileSprite = this.scene.add.tileSprite(0, 0, width, height, 'soil1')
-      .setOrigin(0)
-      .setDepth(-40);
-    this.grassTileSprite  = this.scene.add.tileSprite(0, this.scene.scale.height % 16, width, height, 'grass')
-      .setOrigin(0)
-      .setDepth(-39);
-
-    // Create the mask RenderTexture
-    this.maskRenderTexture = this.scene.make.renderTexture({ width, height }, false).setOrigin(0);
-    this.grassRenderTexture = this.scene.make.renderTexture({ width, height }, false).setOrigin(0);
-
-    // Create and apply the mask
-    const mask = this.maskRenderTexture.createBitmapMask();
-    this.soilTileSprite.setMask(mask);
-    const mask2 = this.grassRenderTexture.createBitmapMask();
-    this.grassTileSprite.setMask(mask2);
-
-    this.addGameObject(this.soilTileSprite);
-    this.addGameObject(this.grassTileSprite);
+  private setupTilemap(): void {
+    // Save current soil tile positions if layer exists
+    let placedBlocks: {x: number, y: number}[] = [];
+    if (this.layer) {
+      for (let x = 0; x < this.WORLD_WIDTH / this.BLOCK_SIZE; x++) {
+        for (let y = 0; y < this.TILEMAP_HEIGHT; y++) {
+          const tile = this.layer.getTileAt(x, y);
+          if (tile && tile.index >= this.soilTileIndex && tile.index < this.soilTileIndex + 256) {
+            placedBlocks.push({x, y});
+          }
+        }
+      }
+    }
+    // Remove old tilemap/layer if any
+    if (this.layer) this.layer.destroy();
+    if (this.tilemap) this.tilemap.destroy();
+    // Create a blank tilemap
+    this.tilemap = this.scene.make.tilemap({
+      tileWidth: this.BLOCK_SIZE,
+      tileHeight: this.BLOCK_SIZE,
+      width: this.WORLD_WIDTH / this.BLOCK_SIZE,
+      height: this.TILEMAP_HEIGHT,
+    });
+    // Add only the soil tileset
+    const soilTileset = this.tilemap.addTilesetImage('soil1', undefined, this.BLOCK_SIZE, this.BLOCK_SIZE, 0, 0);
+    if (!soilTileset) return;
+    // Create a blank layer with only soil
+    this.layer = this.tilemap.createBlankLayer('layer1', [soilTileset], 0, 0);
+    if (this.layer) {
+      this.layer.setDepth(-20);
+      // Anchor the tilemap to the bottom of the screen
+      this.layer.y = this.scene.scale.height - (this.TILEMAP_HEIGHT * this.BLOCK_SIZE);
+      // Restore placed blocks
+      for (const {x, y} of placedBlocks) {
+        this.layer.putTileAt(this.getSoilTileIndex(x, y), x, y);
+      }
+    }
+    // Set tile index for soil
+    this.soilTileIndex = soilTileset.firstgid;
   }
 
   private scrollCamera(direction: -1 | 1) {
-    const maxOffset = this.LEVEL_WIDTH_BLOCKS * this.BLOCK_SIZE - this.scene.scale.width;
+    const maxOffset = this.WORLD_WIDTH - this.scene.scale.width;
     const newOffset = Phaser.Math.Clamp(this.cameraOffsetX + direction * 64, 0, Math.max(0, maxOffset));
     this.scene.tweens.add({
       targets: this,
@@ -308,9 +302,7 @@ export class EditorState extends BaseState {
       duration: 300,
       ease: 'Sine.easeInOut',
       onUpdate: () => {
-        this.updateTileSpriteOffsets();
-        this.drawGrid();
-        this.drawBlocks();
+        this.scene.cameras.main.scrollX = this.cameraOffsetX;
       }
     });
   }
@@ -319,19 +311,15 @@ export class EditorState extends BaseState {
     const delta = event.deltaX !== 0 ? event.deltaX : event.deltaY;
     if (delta !== 0) {
       event.preventDefault();
-      const maxOffset = this.LEVEL_WIDTH_BLOCKS * this.BLOCK_SIZE - this.scene.scale.width;
+      const maxOffset = this.WORLD_WIDTH - this.scene.scale.width;
       this.cameraOffsetX = Phaser.Math.Clamp(this.cameraOffsetX + delta, 0, Math.max(0, maxOffset));
-      this.updateTileSpriteOffsets();
-      this.drawGrid();
-      this.drawBlocks();
+      this.scene.cameras.main.scrollX = this.cameraOffsetX;
     }
   }
 
   private updateTileSpriteOffsets(): void {
     if (this.soilTileSprite) {
-      this.soilTileSprite.tilePositionX = this.cameraOffsetX;
       this.soilTileSprite.tilePositionY = -this.scene.scale.height % 256;
     }
-    if (this.grassTileSprite) this.grassTileSprite.tilePositionX = this.cameraOffsetX;
   }
 }

@@ -62,12 +62,14 @@ export class EditorState extends BaseState {
       return;
     }
     this.isDrawing = true;
-    this.addBlockAtPointer(pointer);
+    const deleteMode = pointer.event.shiftKey;
+    this.addBlockAtPointer(pointer, deleteMode);
   }
 
   private handleBlockPointerMove(pointer: Phaser.Input.Pointer): void {
     if (this.isDrawing) {
-      this.addBlockAtPointer(pointer);
+      const deleteMode = pointer.event.shiftKey;
+      this.addBlockAtPointer(pointer, deleteMode);
     }
   }
 
@@ -75,13 +77,20 @@ export class EditorState extends BaseState {
     this.isDrawing = false;
   }
 
-  private addBlockAtPointer(pointer: Phaser.Input.Pointer): void {
+  private addBlockAtPointer(pointer: Phaser.Input.Pointer, deleteMode = false): void {
     const blockX = Math.floor(pointer.x / 16);
     const blockY = Math.floor((this.scene.scale.height - pointer.y) / 16);
     const blockKey = `${blockX},${blockY}`;
-    if (!this.blocks.has(blockKey)) {
-      this.blocks.add(blockKey);
-      this.drawBlocks();
+    if (deleteMode) {
+      if (this.blocks.has(blockKey)) {
+        this.blocks.delete(blockKey);
+        this.drawBlocks();
+      }
+    } else {
+      if (!this.blocks.has(blockKey)) {
+        this.blocks.add(blockKey);
+        this.drawBlocks();
+      }
     }
   }
 

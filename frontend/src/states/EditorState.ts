@@ -142,18 +142,47 @@ export class EditorState extends BaseState {
     const width = this.scene.scale.width;
     const height = this.scene.scale.height;
 
-    // Update TileSprite size
+    // Recreate background gradient
+    if (this.bgImage) {
+      this.bgImage.destroy();
+    }
+    this.bgImage = createSkyGradient(this.scene);
+    if (this.bgImage) {
+      this.bgImage.setSize(width, height);
+      this.addGameObject(this.bgImage);
+    }
+
+    // Destroy and null out soil, grass, and render textures
     if (this.soilTileSprite) {
-      this.soilTileSprite.setSize(width, height);
+      this.soilTileSprite.destroy();
+      this.soilTileSprite = null;
     }
-
-    // Update RenderTexture size
+    if (this.grassTileSprite) {
+      this.grassTileSprite.destroy();
+      this.grassTileSprite = null;
+    }
     if (this.maskRenderTexture) {
-      this.maskRenderTexture.resize(width, height);
+      this.maskRenderTexture.destroy();
+      this.maskRenderTexture = null;
+    }
+    if (this.grassRenderTexture) {
+      this.grassRenderTexture.destroy();
+      this.grassRenderTexture = null;
     }
 
+    // Re-setup soil, grass, and masks
+    this.setupSoilAndMask();
+
+    // Redraw grid first
     this.drawGrid();
+
+    // Redraw blocks and masks after all resizing/clearing
     this.drawBlocks();
+
+    // Update back button position
+    if (this.backButton) {
+      this.backButton.setX(width - 32);
+    }
   }
 
   private setupBackButton(): void {

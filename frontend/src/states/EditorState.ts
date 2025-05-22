@@ -23,16 +23,22 @@ export class EditorState extends BaseState {
   private maskRenderTexture: Phaser.GameObjects.RenderTexture | null = null;
   private grassRenderTexture: Phaser.GameObjects.RenderTexture | null = null;
   private cameraOffsetX: number = 0;
+  private cameraOffsetY: number = 0;
   private readonly WORLD_WIDTH = 3200; // 200 blocks * 16px
   private readonly BLOCK_SIZE = 16;
   private tilemap: Phaser.Tilemaps.Tilemap | null = null;
   private layer: Phaser.Tilemaps.TilemapLayer | null = null;
-  private readonly TILEMAP_HEIGHT = 50; // Adjust as needed
+  private readonly TILEMAP_HEIGHT = 100; // Adjust as needed
   private landTileIndex: number = 0;
   private worldMap: boolean[][] = [];
 
   protected onCreate(): void {
     this.shouldIgnoreNextClick = true;
+    // Set camera to bottom of world
+    const maxOffsetY = Math.max(0, (this.TILEMAP_HEIGHT * this.BLOCK_SIZE) - this.scene.scale.height);
+    this.cameraOffsetX = 0;
+    this.cameraOffsetY = maxOffsetY;
+    this.scene.cameras.main.scrollY = this.cameraOffsetY;
     this.setupBackground();
     this.drawGrid();
     this.setupBackButton();
@@ -44,8 +50,10 @@ export class EditorState extends BaseState {
     this.scene.input.on('pointerup', this.handleBlockPointerUp, this);
     this.scene.scale.on('resize', this.handleResize, this);
     if (this.scene.input.keyboard) {
-      this.scene.input.keyboard.on('keydown-LEFT', () => this.scrollCamera(-1), this);
-      this.scene.input.keyboard.on('keydown-RIGHT', () => this.scrollCamera(1), this);
+      this.scene.input.keyboard.on('keydown-LEFT', () => this.scrollCameraX(-1), this);
+      this.scene.input.keyboard.on('keydown-RIGHT', () => this.scrollCameraX(1), this);
+      this.scene.input.keyboard.on('keydown-UP', () => this.scrollCameraY(-1), this);
+      this.scene.input.keyboard.on('keydown-DOWN', () => this.scrollCameraY(1), this);
     }
     // Mouse wheel scroll
     if (this.scene.game.canvas) {
@@ -53,9 +61,10 @@ export class EditorState extends BaseState {
     }
 
     // Set up camera bounds
-    const height = this.scene.scale.height;
+    const height = this.TILEMAP_HEIGHT * this.BLOCK_SIZE;
     this.scene.cameras.main.setBounds(0, 0, this.WORLD_WIDTH, height);
     this.scene.cameras.main.scrollX = this.cameraOffsetX;
+    this.scene.cameras.main.scrollY = this.cameraOffsetY;
   }
 
   protected onUpdate(): void {
@@ -84,7 +93,9 @@ export class EditorState extends BaseState {
     
     // Reset camera
     this.cameraOffsetX = 0;
+    this.cameraOffsetY = 0;
     this.scene.cameras.main.scrollX = 0;
+    this.scene.cameras.main.scrollY = 0;
     this.scene.cameras.main.setBounds(0, 0, this.scene.scale.width, this.scene.scale.height);
     
     // Remove event listeners
@@ -127,7 +138,9 @@ export class EditorState extends BaseState {
 
   private getSoilTileIndex(x: number, y: number): number {
     // Soil tiles start at index 16 (after the 16 grass tiles)
-    return 16 + ((y % 16) * 16 + (x % 16));
+    // Flip Y so world Y=0 (bottom) uses bottom row of soil tileset
+    const flippedY = 15 - (y % 16);
+    return 16 + (flippedY * 16 + (x % 16));
   }
 
   private getGrassTileIndex(x: number): number {
@@ -147,15 +160,28 @@ export class EditorState extends BaseState {
     }
   }
 
+  // Convert screen (pixel) coordinates to world (block) coordinates
+  private screenToWorldSpace(screenX: number, screenY: number): { x: number, y: number } {
+    const x = Math.floor((screenX + this.cameraOffsetX) / this.BLOCK_SIZE);
+    const y = this.TILEMAP_HEIGHT - 1 - Math.floor((screenY + this.cameraOffsetY - (this.layer ? this.layer.y : 0)) / this.BLOCK_SIZE);
+    return { x, y };
+  }
+
+  // Convert world (block) coordinates to screen (pixel) coordinates (top-left of block)
+  private worldToScreenSpace(worldX: number, worldY: number): { x: number, y: number } {
+    const x = worldX * this.BLOCK_SIZE - this.cameraOffsetX;
+    const y = (this.TILEMAP_HEIGHT - 1 - worldY) * this.BLOCK_SIZE - this.cameraOffsetY + (this.layer ? this.layer.y : 0);
+    return { x, y };
+  }
+
   private addBlockAtPointer(pointer: Phaser.Input.Pointer, deleteMode = false): void {
     if (!this.tilemap || !this.layer) return;
-    const blockX = Math.floor((pointer.x + this.cameraOffsetX) / this.BLOCK_SIZE);
-    const blockY = Math.floor((pointer.y - this.layer.y) / this.BLOCK_SIZE);
-    if (blockX < 0 || blockX >= this.worldMap.length || blockY < 0 || blockY >= this.TILEMAP_HEIGHT) return;
+    const { x: blockX, y: worldY } = this.screenToWorldSpace(pointer.x, pointer.y);
+    if (blockX < 0 || blockX >= this.worldMap.length || worldY < 0 || worldY >= this.TILEMAP_HEIGHT) return;
     if (deleteMode) {
-      this.worldMap[blockX][blockY] = false;
+      this.worldMap[blockX][worldY] = false;
     } else {
-      this.worldMap[blockX][blockY] = true;
+      this.worldMap[blockX][worldY] = true;
     }
     this.redrawWorldTiles();
   }
@@ -164,14 +190,16 @@ export class EditorState extends BaseState {
     if (!this.layer) return;
     this.layer.fill(-1); // Clear all tiles
     for (let x = 0; x < this.worldMap.length; x++) {
-      for (let y = 0; y < this.TILEMAP_HEIGHT; y++) {
-        if (this.worldMap[x][y]) {
+      for (let worldY = 0; worldY < this.TILEMAP_HEIGHT; worldY++) {
+        if (this.worldMap[x][worldY]) {
+          // Map worldY (0=bottom) to tilemapY (0=top)
+          const tilemapY = this.TILEMAP_HEIGHT - 1 - worldY;
           // Place soil
-          this.layer.putTileAt(this.getSoilTileIndex(x, y), x, y);
-          // If there is no soil above, place grass (uncomment if needed)
-           if (y > 0 && !this.worldMap[x][y - 1]) {
-             this.layer.putTileAt(this.getGrassTileIndex(x), x, y - 1);
-           }
+          this.layer.putTileAt(this.getSoilTileIndex(x, worldY), x, tilemapY);
+          // If there is no soil above, place grass
+          if (worldY < this.TILEMAP_HEIGHT - 1 && !this.worldMap[x][worldY + 1]) {
+            this.layer.putTileAt(this.getGrassTileIndex(x), x, tilemapY - 1);
+          }
         }
       }
     }
@@ -190,7 +218,7 @@ export class EditorState extends BaseState {
   private drawGrid(): void {
     if (this.gridGraphics) this.gridGraphics.destroy();
     const width = this.WORLD_WIDTH;
-    const height = this.scene.scale.height;
+    const height = this.TILEMAP_HEIGHT * this.BLOCK_SIZE;
     const grid = this.scene.add.graphics();
     grid.setDepth(-50);
     grid.lineStyle(1, 0x9b59b6, 0.25);
@@ -201,12 +229,12 @@ export class EditorState extends BaseState {
       grid.lineTo(x, height);
       grid.strokePath();
     }
-    // Horizontal lines
-    const yOffset = height % this.BLOCK_SIZE;
-    for (let y = yOffset; y <= height; y += this.BLOCK_SIZE) {
+    // Horizontal lines (bottom = worldY 0)
+    for (let y = 0; y <= this.TILEMAP_HEIGHT; y++) {
+      const screenY = height - y * this.BLOCK_SIZE;
       grid.beginPath();
-      grid.moveTo(0, y);
-      grid.lineTo(width, y);
+      grid.moveTo(0, screenY);
+      grid.lineTo(width, screenY);
       grid.strokePath();
     }
     this.gridGraphics = grid;
@@ -230,10 +258,7 @@ export class EditorState extends BaseState {
 
     // Re-setup tilemap
     this.setupTilemap();
-    // If layer exists, anchor it to the bottom after resize
-    if (this.layer) {
-      this.layer.y = this.scene.scale.height - (this.TILEMAP_HEIGHT * this.BLOCK_SIZE);
-    }
+    // No need to anchor layer to bottom after resize; keep at y=0
 
     // Redraw grid first
     this.drawGrid();
@@ -308,9 +333,8 @@ export class EditorState extends BaseState {
 
   private updateCoordDisplay(pointer: Phaser.Input.Pointer): void {
     if (!this.coordText || !this.layer) return;
-    const blockX = Math.floor((pointer.x + this.cameraOffsetX) / this.BLOCK_SIZE);
-    const blockY = Math.floor((pointer.y - this.layer.y) / this.BLOCK_SIZE);
-    this.coordText.setText(`(${blockX}, ${blockY})`);
+    const { x: blockX, y: worldY } = this.screenToWorldSpace(pointer.x, pointer.y);
+    this.coordText.setText(`(${blockX}, ${worldY})`);
   }
 
   private setupTilemap(): void {
@@ -333,8 +357,8 @@ export class EditorState extends BaseState {
     this.layer = this.tilemap.createBlankLayer('layer1', [landTileset], 0, 0);
     if (this.layer) {
       this.layer.setDepth(-20);
-      // Anchor the tilemap to the bottom of the screen
-      this.layer.y = this.scene.scale.height - (this.TILEMAP_HEIGHT * this.BLOCK_SIZE);
+      // Anchor the tilemap to the top of the screen
+      this.layer.y = 0;
     }
     // Set tile index for land tileset
     this.landTileIndex = landTileset.firstgid;
@@ -347,7 +371,7 @@ export class EditorState extends BaseState {
     this.redrawWorldTiles();
   }
 
-  private scrollCamera(direction: -1 | 1) {
+  private scrollCameraX(direction: -1 | 1) {
     const maxOffset = this.WORLD_WIDTH - this.scene.scale.width;
     const newOffset = Phaser.Math.Clamp(this.cameraOffsetX + direction * 64, 0, Math.max(0, maxOffset));
     this.scene.tweens.add({
@@ -361,13 +385,35 @@ export class EditorState extends BaseState {
     });
   }
 
+  private scrollCameraY(direction: -1 | 1) {
+    const maxOffset = Math.max(0, (this.TILEMAP_HEIGHT * this.BLOCK_SIZE) - this.scene.scale.height);
+    // Standard: up arrow (direction=-1) decreases cameraOffsetY (scroll up), down arrow increases (scroll down)
+    const newOffset = Phaser.Math.Clamp(this.cameraOffsetY + direction * 64, 0, maxOffset);
+    this.scene.tweens.add({
+      targets: this,
+      cameraOffsetY: newOffset,
+      duration: 300,
+      ease: 'Sine.easeInOut',
+      onUpdate: () => {
+        this.scene.cameras.main.scrollY = this.cameraOffsetY;
+      }
+    });
+  }
+
   private handleWheelScroll = (event: WheelEvent) => {
-    const delta = event.deltaX !== 0 ? event.deltaX : event.deltaY;
-    if (delta !== 0) {
-      event.preventDefault();
-      const maxOffset = this.WORLD_WIDTH - this.scene.scale.width;
-      this.cameraOffsetX = Phaser.Math.Clamp(this.cameraOffsetX + delta, 0, Math.max(0, maxOffset));
+    event.preventDefault();
+    const deltaX = event.deltaX;
+    const deltaY = event.deltaY;
+    if (deltaX !== 0) {
+      const maxOffsetX = this.WORLD_WIDTH - this.scene.scale.width;
+      this.cameraOffsetX = Phaser.Math.Clamp(this.cameraOffsetX + deltaX, 0, Math.max(0, maxOffsetX));
       this.scene.cameras.main.scrollX = this.cameraOffsetX;
+    }
+    if (deltaY !== 0) {
+      const maxOffsetY = Math.max(0, (this.TILEMAP_HEIGHT * this.BLOCK_SIZE) - this.scene.scale.height);
+      // Standard: wheel up (negative deltaY) scrolls up, wheel down (positive deltaY) scrolls down
+      this.cameraOffsetY = Phaser.Math.Clamp(this.cameraOffsetY + deltaY, 0, maxOffsetY);
+      this.scene.cameras.main.scrollY = this.cameraOffsetY;
     }
   }
 

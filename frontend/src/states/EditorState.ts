@@ -19,7 +19,9 @@ export class EditorState extends BaseState {
   private isDrawing: boolean = false;
   private blockGraphics: Phaser.GameObjects.Graphics | null = null;
   private soilTileSprite: Phaser.GameObjects.TileSprite | null = null;
+  private grassTileSprite: Phaser.GameObjects.TileSprite | null = null;
   private maskRenderTexture: Phaser.GameObjects.RenderTexture | null = null;
+  private grassRenderTexture: Phaser.GameObjects.RenderTexture | null = null;
 
   protected onCreate(): void {
     this.shouldIgnoreNextClick = true;
@@ -84,16 +86,23 @@ export class EditorState extends BaseState {
   }
 
   private drawBlocks(): void {
-    if (!this.maskRenderTexture) return;
+    if (!this.maskRenderTexture || !this.grassRenderTexture) return;
     this.maskRenderTexture.clear();
+    this.grassRenderTexture.clear();
     // Draw white rectangles for each block (revealing soil)
     for (const key of this.blocks) {
       const [blockX, blockY] = key.split(',').map(Number);
       // Convert world (block) coordinates to screen coordinates
       const screenX = blockX * 16;
       const screenY = this.scene.scale.height - (blockY + 1) * 16;
-      console.log(screenX, screenY);
       this.maskRenderTexture.fill(0xffffff, 1, screenX, screenY, 16, 16);
+
+      // check to see if the block above this one is empty, and if it is, add
+      // grass by calling fill on grassRenderTexture  
+      const aboveKey = `${blockX},${blockY+1}`;
+      if (!this.blocks.has(aboveKey)) {
+        this.grassRenderTexture.fill(0xffffff, 1, screenX, screenY - 16, 16, 16);
+      }
     }
   }
 
@@ -218,18 +227,25 @@ export class EditorState extends BaseState {
     const width = this.scene.scale.width;
     const height = this.scene.scale.height;
 
-    // Create the soil TileSprite
+    // Create the soil TileSprite and the grass TileSprite
     this.soilTileSprite = this.scene.add.tileSprite(0, 0, width, height, 'soil1')
       .setOrigin(0)
       .setDepth(-40);
+    this.grassTileSprite  = this.scene.add.tileSprite(0, this.scene.scale.height % 16, width, height, 'grass')
+      .setOrigin(0)
+      .setDepth(-39);
 
     // Create the mask RenderTexture
     this.maskRenderTexture = this.scene.make.renderTexture({ width, height }, false).setOrigin(0);
-    
+    this.grassRenderTexture = this.scene.make.renderTexture({ width, height }, false).setOrigin(0);
+
     // Create and apply the mask
     const mask = this.maskRenderTexture.createBitmapMask();
     this.soilTileSprite.setMask(mask);
+    const mask2 = this.grassRenderTexture.createBitmapMask();
+    this.grassTileSprite.setMask(mask2);
 
     this.addGameObject(this.soilTileSprite);
+    this.addGameObject(this.grassTileSprite);
   }
 }

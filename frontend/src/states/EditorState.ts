@@ -18,6 +18,8 @@ export class EditorState extends BaseState {
   private shouldIgnoreNextClick: boolean = true;
   private isDrawing: boolean = false;
   private blockGraphics: Phaser.GameObjects.Graphics | null = null;
+  private soilTileSprite: Phaser.GameObjects.TileSprite | null = null;
+  private maskRenderTexture: Phaser.GameObjects.RenderTexture | null = null;
 
   protected onCreate(): void {
     this.shouldIgnoreNextClick = true;
@@ -25,7 +27,7 @@ export class EditorState extends BaseState {
     this.drawGrid();
     this.setupBackButton();
     this.setupCoordDisplay();
-    this.setupBlockGraphics();
+    this.setupSoilAndMask();
     this.scene.input.on('pointermove', this.updateCoordDisplay, this);
     this.scene.input.on('pointerdown', this.handleBlockPointerDown, this);
     this.scene.input.on('pointermove', this.handleBlockPointerMove, this);
@@ -42,13 +44,15 @@ export class EditorState extends BaseState {
     if (this.backButton) this.backButton.destroy();
     if (this.coordText) this.coordText.destroy();
     if (this.gridGraphics) this.gridGraphics.destroy();
+    if (this.soilTileSprite) this.soilTileSprite.destroy();
+    if (this.maskRenderTexture) this.maskRenderTexture.destroy();
     this.scene.input.off('pointermove', this.updateCoordDisplay, this);
     this.scene.input.off('pointerdown', this.handleBlockPointerDown, this);
     this.scene.input.off('pointermove', this.handleBlockPointerMove, this);
     this.scene.input.off('pointerup', this.handleBlockPointerUp, this);
     this.scene.scale.off('resize', this.handleResize, this);
     this.blocks.clear();
-    this.drawBlocks();
+
   }
 
   private handleBlockPointerDown(pointer: Phaser.Input.Pointer): void {
@@ -81,15 +85,17 @@ export class EditorState extends BaseState {
   }
 
   private drawBlocks(): void {
-    if (!this.blockGraphics) return;
-    this.blockGraphics.clear();
-    this.blockGraphics.fillStyle(0x00ff00, 0.5); // Semi-transparent green
-    this.blocks.forEach(blockKey => {
-      const [x, y] = blockKey.split(',').map(Number);
-      const screenX = x * 16;
-      const screenY = this.scene.scale.height - (y + 1) * 16;
-      this.blockGraphics.fillRect(screenX, screenY, 16, 16);
-    });
+    if (!this.maskRenderTexture) return;
+    this.maskRenderTexture.clear();
+    // Draw white rectangles for each block (revealing soil)
+    for (const key of this.blocks) {
+      const [blockX, blockY] = key.split(',').map(Number);
+      // Convert world (block) coordinates to screen coordinates
+      const screenX = blockX * 16;
+      const screenY = this.scene.scale.height - (blockY + 1) * 16;
+      console.log(screenX, screenY);
+      this.maskRenderTexture.fill(0xffffff, 1, screenX, screenY, 16, 16);
+    }
   }
 
   private setupBackground(): void {
@@ -125,6 +131,19 @@ export class EditorState extends BaseState {
   }
 
   private handleResize(): void {
+    const width = this.scene.scale.width;
+    const height = this.scene.scale.height;
+
+    // Update TileSprite size
+    if (this.soilTileSprite) {
+      this.soilTileSprite.setSize(width, height);
+    }
+
+    // Update RenderTexture size
+    if (this.maskRenderTexture) {
+      this.maskRenderTexture.resize(width, height);
+    }
+
     this.drawGrid();
     this.drawBlocks();
   }
@@ -196,12 +215,22 @@ export class EditorState extends BaseState {
     this.coordText.setText(`(${blockX}, ${blockY})`);
   }
 
-  private setupBlockGraphics(): void {
-    if (this.blockGraphics) {
-      this.blockGraphics.destroy();
-    }
-    this.blockGraphics = this.scene.add.graphics();
-    this.blockGraphics.setDepth(-40); // Just above the grid
-    this.addGameObject(this.blockGraphics);
+  private setupSoilAndMask(): void {
+    const width = this.scene.scale.width;
+    const height = this.scene.scale.height;
+
+    // Create the soil TileSprite
+    this.soilTileSprite = this.scene.add.tileSprite(0, 0, width, height, 'soil1')
+      .setOrigin(0)
+      .setDepth(-40);
+
+    // Create the mask RenderTexture
+    this.maskRenderTexture = this.scene.make.renderTexture({ width, height }, false).setOrigin(0);
+    
+    // Create and apply the mask
+    const mask = this.maskRenderTexture.createBitmapMask();
+    this.soilTileSprite.setMask(mask);
+
+    this.addGameObject(this.soilTileSprite);
   }
 }

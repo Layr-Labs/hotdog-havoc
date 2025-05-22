@@ -70,14 +70,38 @@ export class EditorState extends BaseState {
     if (this.blockGraphics) this.blockGraphics.destroy();
     if (this.soilTileSprite) this.soilTileSprite.destroy();
     if (this.maskRenderTexture) this.maskRenderTexture.destroy();
+    if (this.grassRenderTexture) this.grassRenderTexture.destroy();
+    
+    // Clean up tilemap and layer
+    if (this.layer) {
+      this.layer.destroy();
+      this.layer = null;
+    }
+    if (this.tilemap) {
+      this.tilemap.destroy();
+      this.tilemap = null;
+    }
+    
+    // Reset camera
+    this.cameraOffsetX = 0;
+    this.scene.cameras.main.scrollX = 0;
+    this.scene.cameras.main.setBounds(0, 0, this.scene.scale.width, this.scene.scale.height);
+    
+    // Remove event listeners
     this.scene.input.off('pointermove', this.updateCoordDisplay, this);
     this.scene.input.off('pointerdown', this.handleBlockPointerDown, this);
     this.scene.input.off('pointermove', this.handleBlockPointerMove, this);
     this.scene.input.off('pointerup', this.handleBlockPointerUp, this);
     this.scene.scale.off('resize', this.handleResize, this);
+    
+    // Clear world map
     this.blocks.clear();
+    this.worldMap = [];
+    
     // Remove mouse wheel scroll
-    this.scene.game.canvas.removeEventListener('wheel', this.handleWheelScroll as EventListener);
+    if (this.scene.game.canvas) {
+      this.scene.game.canvas.removeEventListener('wheel', this.handleWheelScroll as EventListener);
+    }
   }
 
   private handleBlockPointerDown(pointer: Phaser.Input.Pointer): void {
@@ -314,7 +338,6 @@ export class EditorState extends BaseState {
     }
     // Set tile index for land tileset
     this.landTileIndex = landTileset.firstgid;
-    console.log("landTileIndex", this.landTileIndex);
     // Restore or initialize worldMap
     if (prevWorldMap && prevWorldMap.length) {
       this.worldMap = prevWorldMap;

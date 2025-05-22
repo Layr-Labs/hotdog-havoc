@@ -328,7 +328,10 @@ export class EditorState extends BaseState {
   }
 
   private updateTileSpriteOffsets(): void {
-    if (this.soilTileSprite) this.soilTileSprite.tilePositionX = this.cameraOffsetX;
+    if (this.soilTileSprite) {
+      this.soilTileSprite.tilePositionX = this.cameraOffsetX;
+      this.soilTileSprite.tilePositionY = -this.scene.scale.height % 256;
+    }
     if (this.grassTileSprite) this.grassTileSprite.tilePositionX = this.cameraOffsetX;
   }
 }

@@ -52,7 +52,6 @@ export class EditorState extends BaseState {
     this.scene.input.off('pointerup', this.handleBlockPointerUp, this);
     this.scene.scale.off('resize', this.handleResize, this);
     this.blocks.clear();
-
   }
 
   private handleBlockPointerDown(pointer: Phaser.Input.Pointer): void {

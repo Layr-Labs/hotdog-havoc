@@ -22,6 +22,9 @@ export class EditorState extends BaseState {
   private grassTileSprite: Phaser.GameObjects.TileSprite | null = null;
   private maskRenderTexture: Phaser.GameObjects.RenderTexture | null = null;
   private grassRenderTexture: Phaser.GameObjects.RenderTexture | null = null;
+  private cameraOffsetX: number = 0;
+  private readonly LEVEL_WIDTH_BLOCKS = 200;
+  private readonly BLOCK_SIZE = 16;
 
   protected onCreate(): void {
     this.shouldIgnoreNextClick = true;
@@ -35,6 +38,8 @@ export class EditorState extends BaseState {
     this.scene.input.on('pointermove', this.handleBlockPointerMove, this);
     this.scene.input.on('pointerup', this.handleBlockPointerUp, this);
     this.scene.scale.on('resize', this.handleResize, this);
+    this.scene.input.keyboard.on('keydown-LEFT', () => this.scrollCamera(-1), this);
+    this.scene.input.keyboard.on('keydown-RIGHT', () => this.scrollCamera(1), this);
   }
 
   protected onUpdate(): void {
@@ -46,6 +51,7 @@ export class EditorState extends BaseState {
     if (this.backButton) this.backButton.destroy();
     if (this.coordText) this.coordText.destroy();
     if (this.gridGraphics) this.gridGraphics.destroy();
+    if (this.blockGraphics) this.blockGraphics.destroy();
     if (this.soilTileSprite) this.soilTileSprite.destroy();
     if (this.maskRenderTexture) this.maskRenderTexture.destroy();
     this.scene.input.off('pointermove', this.updateCoordDisplay, this);
@@ -78,8 +84,8 @@ export class EditorState extends BaseState {
   }
 
   private addBlockAtPointer(pointer: Phaser.Input.Pointer, deleteMode = false): void {
-    const blockX = Math.floor(pointer.x / 16);
-    const blockY = Math.floor((this.scene.scale.height - pointer.y) / 16);
+    const blockX = Math.floor((pointer.x + this.cameraOffsetX) / this.BLOCK_SIZE);
+    const blockY = Math.floor((this.scene.scale.height - pointer.y) / this.BLOCK_SIZE);
     const blockKey = `${blockX},${blockY}`;
     if (deleteMode) {
       if (this.blocks.has(blockKey)) {
@@ -98,19 +104,16 @@ export class EditorState extends BaseState {
     if (!this.maskRenderTexture || !this.grassRenderTexture) return;
     this.maskRenderTexture.clear();
     this.grassRenderTexture.clear();
-    // Draw white rectangles for each block (revealing soil)
     for (const key of this.blocks) {
       const [blockX, blockY] = key.split(',').map(Number);
       // Convert world (block) coordinates to screen coordinates
-      const screenX = blockX * 16;
-      const screenY = this.scene.scale.height - (blockY + 1) * 16;
-      this.maskRenderTexture.fill(0xffffff, 1, screenX, screenY, 16, 16);
-
-      // check to see if the block above this one is empty, and if it is, add
-      // grass by calling fill on grassRenderTexture  
+      const screenX = blockX * this.BLOCK_SIZE - this.cameraOffsetX;
+      const screenY = this.scene.scale.height - (blockY + 1) * this.BLOCK_SIZE;
+      if (screenX + this.BLOCK_SIZE < 0 || screenX > this.scene.scale.width) continue; // Only draw visible blocks
+      this.maskRenderTexture.fill(0xffffff, 1, screenX, screenY, this.BLOCK_SIZE, this.BLOCK_SIZE);
       const aboveKey = `${blockX},${blockY+1}`;
       if (!this.blocks.has(aboveKey)) {
-        this.grassRenderTexture.fill(0xffffff, 1, screenX, screenY - 16, 16, 16);
+        this.grassRenderTexture.fill(0xffffff, 1, screenX, screenY - this.BLOCK_SIZE, this.BLOCK_SIZE, this.BLOCK_SIZE);
       }
     }
   }
@@ -129,15 +132,19 @@ export class EditorState extends BaseState {
     const grid = this.scene.add.graphics();
     grid.setDepth(-50);
     grid.lineStyle(1, 0x9b59b6, 0.25);
-    for (let x = 0; x <= width; x += 16) {
+    // Vertical lines (only for visible part)
+    const startBlock = Math.floor(this.cameraOffsetX / this.BLOCK_SIZE);
+    const endBlock = Math.ceil((this.cameraOffsetX + width) / this.BLOCK_SIZE);
+    for (let x = startBlock; x <= endBlock; x++) {
+      const screenX = x * this.BLOCK_SIZE - this.cameraOffsetX;
       grid.beginPath();
-      grid.moveTo(x, 0);
-      grid.lineTo(x, height);
+      grid.moveTo(screenX, 0);
+      grid.lineTo(screenX, height);
       grid.strokePath();
     }
-    // Anchor horizontal lines to world (0,0) at the bottom
-    const yOffset = height % 16;
-    for (let y = yOffset; y <= height; y += 16) {
+    // Horizontal lines
+    const yOffset = height % this.BLOCK_SIZE;
+    for (let y = yOffset; y <= height; y += this.BLOCK_SIZE) {
       grid.beginPath();
       grid.moveTo(0, y);
       grid.lineTo(width, y);
@@ -256,8 +263,8 @@ export class EditorState extends BaseState {
 
   private updateCoordDisplay(pointer: Phaser.Input.Pointer): void {
     if (!this.coordText) return;
-    const blockX = Math.floor(pointer.x / 16);
-    const blockY = Math.floor((this.scene.scale.height - pointer.y) / 16);
+    const blockX = Math.floor((pointer.x + this.cameraOffsetX) / this.BLOCK_SIZE);
+    const blockY = Math.floor((this.scene.scale.height - pointer.y) / this.BLOCK_SIZE);
     this.coordText.setText(`(${blockX}, ${blockY})`);
   }
 
@@ -285,5 +292,20 @@ export class EditorState extends BaseState {
 
     this.addGameObject(this.soilTileSprite);
     this.addGameObject(this.grassTileSprite);
+  }
+
+  private scrollCamera(direction: -1 | 1) {
+    const maxOffset = this.LEVEL_WIDTH_BLOCKS * this.BLOCK_SIZE - this.scene.scale.width;
+    const newOffset = Phaser.Math.Clamp(this.cameraOffsetX + direction * 64, 0, Math.max(0, maxOffset));
+    this.scene.tweens.add({
+      targets: this,
+      cameraOffsetX: newOffset,
+      duration: 300,
+      ease: 'Sine.easeInOut',
+      onUpdate: () => {
+        this.drawGrid();
+        this.drawBlocks();
+      }
+    });
   }
 }

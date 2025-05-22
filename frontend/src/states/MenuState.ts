@@ -20,6 +20,7 @@ export class MenuState extends BaseState {
     this.setupBackground();
     this.showMainMenuTitle();
     this.setupWalletDisplay();
+    this.scene.scale.on('resize', this.handleResize, this);
   }
 
   protected onUpdate(): void {
@@ -28,11 +29,36 @@ export class MenuState extends BaseState {
 
   protected onDestroy(): void {
     // Clean up game objects
-    if (this.bgImage) this.bgImage.destroy();
-    if (this.mainMenuImage) this.mainMenuImage.destroy();
+    if (this.bgImage) { this.bgImage.destroy(); this.bgImage = null; }
+    if (this.mainMenuImage) { this.mainMenuImage.destroy(); this.mainMenuImage = null; }
     this.menuOptionTexts.forEach(text => text.destroy());
-    if (this.walletText) this.walletText.destroy();
-    if (this.disconnectText) this.disconnectText.destroy();
+    this.menuOptionTexts = [];
+    if (this.walletText) { this.walletText.destroy(); this.walletText = null; }
+    if (this.disconnectText) { this.disconnectText.destroy(); this.disconnectText = null; }
+    this.scene.scale.off('resize', this.handleResize, this);
+    this.gameObjects = [];
+  }
+
+  private handleResize(): void {
+    // Kill all tweens and clear all pending timers/events
+    this.scene.tweens.killAll();
+    this.scene.time.removeAllEvents();
+
+    // Destroy and null out all dynamic objects
+    if (this.bgImage) { this.bgImage.destroy(); this.bgImage = null; }
+    if (this.mainMenuImage) { this.mainMenuImage.destroy(); this.mainMenuImage = null; }
+    this.menuOptionTexts.forEach(text => text.destroy());
+    this.menuOptionTexts = [];
+    if (this.walletText) { this.walletText.destroy(); this.walletText = null; }
+    if (this.disconnectText) { this.disconnectText.destroy(); this.disconnectText = null; }
+
+    // Clear the gameObjects array to prevent duplicates
+    this.gameObjects = [];
+
+    // Re-setup everything
+    this.setupBackground();
+    this.showMainMenuTitle();
+    this.setupWalletDisplay();
   }
 
   private setupBackground(): void {

@@ -15,6 +15,7 @@ export class TitleState extends BaseState {
   protected onCreate(): void {
     this.setupBackground();
     this.showTitleScreen();
+    this.scene.scale.on('resize', this.handleResize, this);
   }
 
   protected onUpdate(): void {
@@ -23,11 +24,33 @@ export class TitleState extends BaseState {
 
   protected onDestroy(): void {
     // Clean up game objects
-    if (this.bgImage) this.bgImage.destroy();
-    if (this.titleImage) this.titleImage.destroy();
-    if (this.startText) this.startText.destroy();
-    if (this.hotdogLeft) this.hotdogLeft.destroy();
-    if (this.hotdogRight) this.hotdogRight.destroy();
+    if (this.bgImage) { this.bgImage.destroy(); this.bgImage = null; }
+    if (this.titleImage) { this.titleImage.destroy(); this.titleImage = null; }
+    if (this.startText) { this.startText.destroy(); this.startText = null; }
+    if (this.hotdogLeft) { this.hotdogLeft.destroy(); this.hotdogLeft = null; }
+    if (this.hotdogRight) { this.hotdogRight.destroy(); this.hotdogRight = null; }
+    this.scene.scale.off('resize', this.handleResize, this);
+    this.gameObjects = [];
+  }
+
+  private handleResize(): void {
+    // Kill all tweens and clear all pending timers/events
+    this.scene.tweens.killAll();
+    this.scene.time.removeAllEvents();
+
+    // Destroy and null out all dynamic objects
+    if (this.bgImage) { this.bgImage.destroy(); this.bgImage = null; }
+    if (this.titleImage) { this.titleImage.destroy(); this.titleImage = null; }
+    if (this.startText) { this.startText.destroy(); this.startText = null; }
+    if (this.hotdogLeft) { this.hotdogLeft.destroy(); this.hotdogLeft = null; }
+    if (this.hotdogRight) { this.hotdogRight.destroy(); this.hotdogRight = null; }
+
+    // Clear the gameObjects array to prevent duplicates
+    this.gameObjects = [];
+
+    // Re-setup everything
+    this.setupBackground();
+    this.showTitleScreen();
   }
 
   private setupBackground(): void {
@@ -38,15 +61,15 @@ export class TitleState extends BaseState {
   }
 
   private showTitleScreen(): void {
-    // Show the title image in the center, but start above the screen
-    const titleFinalY = this.scene.scale.height / 2;
+    // Show the title image a bit lower (25% from the top)
+    const titleFinalY = this.scene.scale.height * 0.25;
     this.titleImage = this.scene.add.image(this.scene.scale.width / 2, -200, 'title');
     this.addGameObject(this.titleImage);
     this.titleImage.setOrigin(0.5, 0.5);
 
-    // Scale down if too large
-    const maxWidth = this.scene.scale.width * 0.8;
-    const maxHeight = this.scene.scale.height * 0.4;
+    // Scale down if too large (bigger than before)
+    const maxWidth = this.scene.scale.width * 0.9;
+    const maxHeight = this.scene.scale.height * 0.5;
     let scale = 1;
     if (this.titleImage.width > maxWidth) {
       scale = maxWidth / this.titleImage.width;
@@ -83,9 +106,11 @@ export class TitleState extends BaseState {
     // Add connect wallet text
     const textY = this.titleImage!.y + (this.titleImage!.displayHeight / 2) + 40;
     const startTextY = this.scene.scale.height + 100;
+    // Responsive font size: clamp between 16px and 24px based on width (1.5%)
+    const fontSize = Math.max(16, Math.min(24, Math.floor(this.scene.scale.width * 0.015)));
     this.startText = this.scene.add.text(this.scene.scale.width / 2, startTextY, 'Connect Wallet to Start', {
       fontFamily: '"Press Start 2P", monospace',
-      fontSize: '20px',
+      fontSize: `${fontSize}px`,
       color: '#fff',
       align: 'center',
     });
@@ -174,7 +199,18 @@ export class TitleState extends BaseState {
 
   private addHotdogImages(): void {
     const y = this.scene.scale.height / 2 + (this.titleImage?.displayHeight || 0) / 2 + 80;
-    const hotdogScale = 0.5;
+    // Responsive hotdog scale: max 60% of height or 35% of width
+    const hotdogImg = this.scene.textures.get('hotdog-title-left').getSourceImage();
+    const maxHotdogHeight = this.scene.scale.height * 0.6;
+    const maxHotdogWidth = this.scene.scale.width * 0.35;
+    let hotdogScale = 1;
+    if (hotdogImg.height > 0 && hotdogImg.width > 0) {
+      hotdogScale = Math.min(
+        maxHotdogHeight / hotdogImg.height,
+        maxHotdogWidth / hotdogImg.width,
+        1
+      );
+    }
 
     // Left hotdog
     this.hotdogLeft = this.scene.add.image(0, y, 'hotdog-title-left');

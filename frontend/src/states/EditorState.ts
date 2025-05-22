@@ -38,8 +38,12 @@ export class EditorState extends BaseState {
     this.scene.input.on('pointermove', this.handleBlockPointerMove, this);
     this.scene.input.on('pointerup', this.handleBlockPointerUp, this);
     this.scene.scale.on('resize', this.handleResize, this);
-    this.scene.input.keyboard.on('keydown-LEFT', () => this.scrollCamera(-1), this);
-    this.scene.input.keyboard.on('keydown-RIGHT', () => this.scrollCamera(1), this);
+    if (this.scene.input.keyboard) {
+      this.scene.input.keyboard.on('keydown-LEFT', () => this.scrollCamera(-1), this);
+      this.scene.input.keyboard.on('keydown-RIGHT', () => this.scrollCamera(1), this);
+    }
+    // Mouse wheel scroll
+    this.scene.game.canvas.addEventListener('wheel', this.handleWheelScroll, { passive: false });
   }
 
   protected onUpdate(): void {
@@ -60,6 +64,8 @@ export class EditorState extends BaseState {
     this.scene.input.off('pointerup', this.handleBlockPointerUp, this);
     this.scene.scale.off('resize', this.handleResize, this);
     this.blocks.clear();
+    // Remove mouse wheel scroll
+    this.scene.game.canvas.removeEventListener('wheel', this.handleWheelScroll as EventListener);
   }
 
   private handleBlockPointerDown(pointer: Phaser.Input.Pointer): void {
@@ -307,5 +313,17 @@ export class EditorState extends BaseState {
         this.drawBlocks();
       }
     });
+  }
+
+  private handleWheelScroll = (event: WheelEvent) => {
+    // Use horizontal scroll if available, otherwise use vertical as horizontal
+    const delta = event.deltaX !== 0 ? event.deltaX : event.deltaY;
+    if (delta !== 0) {
+      event.preventDefault();
+      const maxOffset = this.LEVEL_WIDTH_BLOCKS * this.BLOCK_SIZE - this.scene.scale.width;
+      this.cameraOffsetX = Phaser.Math.Clamp(this.cameraOffsetX + delta, 0, Math.max(0, maxOffset));
+      this.drawGrid();
+      this.drawBlocks();
+    }
   }
 }

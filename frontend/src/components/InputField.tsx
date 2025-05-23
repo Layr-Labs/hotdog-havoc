@@ -291,4 +291,8 @@ export class InputField {
     }
     this.scene.input.off('pointerdown', this.outsidePointerDownHandler, this);
   }
+
+  get displayObject() {
+    return this.parent;
+  }
 } 

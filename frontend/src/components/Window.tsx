@@ -123,10 +123,8 @@ export class Window {
           ...(child.props || {})
         });
         // Add the display object to the container
-        if (child.component.parent) {
-          this.container.add(child.component.parent);
-        } else if (child.component.text) {
-          this.container.add(child.component.text);
+        if (child.component.displayObject) {
+          this.container.add(child.component.displayObject);
         }
       }
     });

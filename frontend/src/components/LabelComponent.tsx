@@ -28,4 +28,7 @@ export class LabelComponent {
       this.text.destroy();
     }
   }
+  get displayObject() {
+    return this.text;
+  }
 } 

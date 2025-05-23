@@ -4,6 +4,7 @@ import { GameStateType } from './GameState';
 import { GameEventEmitter, GameEventType } from './GameEvents';
 import { createSkyGradient } from '../utils/gradientUtils';
 import { Window } from '../components/Window';
+import { InputField } from '../components/InputField';
 
 interface Block {
   x: number;
@@ -34,6 +35,7 @@ export class EditorState extends BaseState {
   private readonly TILEMAP_HEIGHT = 100; // Adjust as needed
   private landTileIndex: number = 0;
   private worldMap: boolean[][] = [];
+  private inputField: InputField | null = null;
 
   protected onCreate(): void {
     this.shouldIgnoreNextClick = true;
@@ -49,6 +51,7 @@ export class EditorState extends BaseState {
     this.setupCoordDisplay();
     this.setupTilemap();
     this.window = new Window(this.scene);
+    this.inputField = new InputField(this.scene);
     this.scene.input.on('pointermove', this.updateCoordDisplay, this);
     this.scene.input.on('pointerdown', this.handleBlockPointerDown, this);
     this.scene.input.on('pointermove', this.handleBlockPointerMove, this);
@@ -87,6 +90,7 @@ export class EditorState extends BaseState {
     if (this.soilTileSprite) this.soilTileSprite.destroy();
     if (this.maskRenderTexture) this.maskRenderTexture.destroy();
     if (this.grassRenderTexture) this.grassRenderTexture.destroy();
+    if (this.inputField) this.inputField.destroy();
     
     // Clean up tilemap and layer
     if (this.layer) {

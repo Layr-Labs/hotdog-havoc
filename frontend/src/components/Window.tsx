@@ -1,4 +1,3 @@
-import { useEffect, useRef } from 'react';
 import Phaser from 'phaser';
 
 interface WindowProps {
@@ -34,9 +33,8 @@ export class Window {
     this.windowWidth = width;
     this.windowHeight = height;
 
-    this.graphics.clear();
-    
     // Draw semi-transparent black background
+    this.graphics.clear();
     this.graphics.fillStyle(0x000000, 0.5);
     this.graphics.fillRect(this.startX, this.startY, width, height);
     
@@ -44,7 +42,6 @@ export class Window {
     this.graphics.lineStyle(1, 0xffffff, 1);
     this.graphics.strokeRect(this.startX, this.startY, width, height);
     
-    this.graphics.setScrollFactor(scrollFactor);
     this.visible = true;
 
     // Create close button
@@ -59,8 +56,8 @@ export class Window {
       align: 'center'
     });
     this.closeButton.setOrigin(0.5, 0.5);
-    this.closeButton.setScrollFactor(scrollFactor);
     this.closeButton.setInteractive({ useHandCursor: true });
+    this.closeButton.setScrollFactor(scrollFactor);
 
     // Add hover effects
     this.closeButton.on('pointerover', () => {
@@ -87,7 +84,7 @@ export class Window {
       }
     });
 
-    this.closeButton.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
+    this.closeButton.on('pointerdown', () => {
       if (this.closeButton) {
         this.scene.tweens.add({
           targets: this.closeButton,
@@ -97,10 +94,10 @@ export class Window {
           ease: 'Sine.easeInOut'
         });
       }
-      // Prevent the click from being processed by other handlers
-      pointer.event.preventDefault();
-      pointer.event.stopImmediatePropagation();
-      this.hide();
+      // Wait one tick before hiding the window to ensure click event is fully processed
+      this.scene.time.delayedCall(0, () => {
+        this.hide();
+      });
     });
   }
 
@@ -132,9 +129,6 @@ export class Window {
   }
 
   destroy() {
-    this.graphics.destroy();
-    if (this.closeButton) {
-      this.closeButton.destroy();
-    }
+    this.hide();
   }
 } 

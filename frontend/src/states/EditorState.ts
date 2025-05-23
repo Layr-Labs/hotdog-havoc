@@ -394,6 +394,10 @@ export class EditorState extends BaseState {
       
       if (this.window) {
         if (this.window.isVisible()) {
+          if (this.inputField) {
+            this.inputField.destroy();
+            this.inputField = null;
+          }
           this.window.hide();
         } else {
           this.window.show({
@@ -402,6 +406,10 @@ export class EditorState extends BaseState {
             width: 300,
             height: 300
           });
+          
+          // Create and show the input field
+          this.inputField = new InputField(this.scene);
+          this.window.addChild(0, -50, this.inputField, { width: 200, fontSize: 12 });
         }
       }
     });

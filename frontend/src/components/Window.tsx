@@ -17,6 +17,7 @@ export class Window {
   private startY: number = 0;
   private windowWidth: number = 0;
   private windowHeight: number = 0;
+  private children: { x: number; y: number; component: any; props?: any }[] = [];
 
   constructor(scene: Phaser.Scene) {
     this.scene = scene;
@@ -99,6 +100,32 @@ export class Window {
         this.hide();
       });
     });
+
+    // Show all child components
+    this.children.forEach(child => {
+      if (child.component) {
+        child.component.show({
+          x: x + child.x,
+          y: y + child.y,
+          scrollFactor: scrollFactor,
+          ...(child.props || {})
+        });
+      }
+    });
+  }
+
+  addChild(x: number, y: number, component: any, props?: any) {
+    this.children.push({ x, y, component, props });
+    if (this.visible && component) {
+      const centerX = this.startX + (this.windowWidth / 2);
+      const centerY = this.startY + (this.windowHeight / 2);
+      component.show({
+        x: centerX + x,
+        y: centerY + y,
+        scrollFactor: 0,
+        ...(props || {})
+      });
+    }
   }
 
   hide() {
@@ -107,7 +134,14 @@ export class Window {
       this.closeButton.destroy();
       this.closeButton = null;
     }
+    // Hide all child components
+    this.children.forEach(child => {
+      if (child.component) {
+        child.component.hide();
+      }
+    });
     this.visible = false;
+    this.children = [];
   }
 
   isVisible(): boolean {
@@ -130,5 +164,9 @@ export class Window {
 
   destroy() {
     this.hide();
+    this.children.forEach(child => {
+      child.component.destroy();
+    });
+    this.children = [];
   }
 } 

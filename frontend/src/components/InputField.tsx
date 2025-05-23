@@ -27,7 +27,7 @@ export class InputField {
   }
 
   show(props: InputFieldProps) {
-    const { x, y, width, fontSize, scrollFactor = 0 } = props;
+    const { x = 0, y = 0, width, fontSize, scrollFactor = 0 } = props;
     this.height = fontSize + (this.padding * 2);
 
     // Create container for all elements

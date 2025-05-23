@@ -57,12 +57,6 @@ export class EditorState extends BaseState {
     this.scene.input.on('pointermove', this.handleBlockPointerMove, this);
     this.scene.input.on('pointerup', this.handleBlockPointerUp, this);
     this.scene.scale.on('resize', this.handleResize, this);
-    if (this.scene.input.keyboard) {
-      this.scene.input.keyboard.on('keydown-LEFT', () => this.scrollCameraX(-1), this);
-      this.scene.input.keyboard.on('keydown-RIGHT', () => this.scrollCameraX(1), this);
-      this.scene.input.keyboard.on('keydown-UP', () => this.scrollCameraY(-1), this);
-      this.scene.input.keyboard.on('keydown-DOWN', () => this.scrollCameraY(1), this);
-    }
     // Mouse wheel scroll
     if (this.scene.game.canvas) {
       this.scene.game.canvas.addEventListener('wheel', this.handleWheelScroll, { passive: false });
@@ -469,35 +463,6 @@ export class EditorState extends BaseState {
       this.initializeWorldMap();
     }
     this.redrawWorldTiles();
-  }
-
-  private scrollCameraX(direction: -1 | 1) {
-    const maxOffset = this.WORLD_WIDTH - this.scene.scale.width;
-    const newOffset = Phaser.Math.Clamp(this.cameraOffsetX + direction * 64, 0, Math.max(0, maxOffset));
-    this.scene.tweens.add({
-      targets: this,
-      cameraOffsetX: newOffset,
-      duration: 300,
-      ease: 'Sine.easeInOut',
-      onUpdate: () => {
-        this.scene.cameras.main.scrollX = this.cameraOffsetX;
-      }
-    });
-  }
-
-  private scrollCameraY(direction: -1 | 1) {
-    const maxOffset = Math.max(0, (this.TILEMAP_HEIGHT * this.BLOCK_SIZE) - this.scene.scale.height);
-    // Standard: up arrow (direction=-1) decreases cameraOffsetY (scroll up), down arrow increases (scroll down)
-    const newOffset = Phaser.Math.Clamp(this.cameraOffsetY + direction * 64, 0, maxOffset);
-    this.scene.tweens.add({
-      targets: this,
-      cameraOffsetY: newOffset,
-      duration: 300,
-      ease: 'Sine.easeInOut',
-      onUpdate: () => {
-        this.scene.cameras.main.scrollY = this.cameraOffsetY;
-      }
-    });
   }
 
   private handleWheelScroll = (event: WheelEvent) => {

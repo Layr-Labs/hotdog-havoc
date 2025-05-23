@@ -119,11 +119,11 @@ export class Window {
         child.component.show({
           x: child.x,
           y: child.y,
-          scrollFactor: scrollFactor,
           ...(child.props || {})
         });
-        // Add the display object to the container
+        // Add the display object to the container at the correct offset
         if (child.component.displayObject) {
+          child.component.displayObject.setPosition(child.x, child.y);
           this.container.add(child.component.displayObject);
         }
       }

@@ -74,7 +74,6 @@ export class InputField {
     this.cursor.setSize(2, fontSize);
     this.cursor.setX(-width/2 + this.padding);
     // Update container position and visibility
-    this.parent.setPosition(x, y);
     this.parent.setScrollFactor(scrollFactor);
     this.parent.setVisible(true);
     // Wait 1 second before attaching interactive area and pointerdown handler

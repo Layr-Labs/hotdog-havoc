@@ -14,7 +14,6 @@ export class LabelComponent {
   }
   show(props: { x: number; y: number; scrollFactor?: number }) {
     if (!this.text) return;
-    this.text.setPosition(props.x, props.y);
     this.text.setScrollFactor(props.scrollFactor || 0);
     this.text.setVisible(true);
   }

@@ -14,17 +14,22 @@ type ButtonCallback = () => void;
 export class ButtonComponent {
   private scene: Phaser.Scene;
   private container: Phaser.GameObjects.Container;
-  private bg: Phaser.GameObjects.Image;
-  private shadow: Phaser.GameObjects.Rectangle;
-  private label: Phaser.GameObjects.Text;
+  private topRect: Phaser.GameObjects.Graphics;
+  private sideRect: Phaser.GameObjects.Graphics;
+  private textShadow: Phaser.GameObjects.Text;
+  private textMain: Phaser.GameObjects.Text;
   private callback: ButtonCallback;
   private width: number;
   private height: number;
   private padding: number;
   private fontSize: number;
   private color: number;
+  private darkColor: number;
   private text: string;
-  private emboss: Phaser.GameObjects.Graphics;
+
+  public get displayObject(): Phaser.GameObjects.Container {
+    return this.container;
+  }
 
   constructor(scene: Phaser.Scene, text: string, fontSize: number, color: number, callback: ButtonCallback, padding = 16) {
     this.scene = scene;
@@ -34,120 +39,94 @@ export class ButtonComponent {
     this.callback = callback;
     this.padding = padding;
 
-    // Create label first to measure size
-    this.label = new Phaser.GameObjects.Text(scene, 0, 0, text, {
-      fontFamily: 'Arial, "Press Start 2P", monospace',
+    // Calculate dark color for the side
+    const base = Phaser.Display.Color.IntegerToColor(color);
+    const dark = Phaser.Display.Color.Interpolate.ColorWithColor(
+      base,
+      new Phaser.Display.Color(0, 0, 0),
+      100,
+      60 // percent darker
+    );
+    this.darkColor = Phaser.Display.Color.GetColor(dark.r, dark.g, dark.b);
+
+    // Create text objects to measure size
+    this.textShadow = new Phaser.GameObjects.Text(scene, 0, 0, text, {
+      fontFamily: '"Press Start 2P", monospace',
+      fontSize: `${fontSize}px`,
+      color: Phaser.Display.Color.RGBToString(dark.r, dark.g, dark.b, 0, '#'),
+      fontStyle: 'bold',
+      align: 'center',
+    });
+    this.textShadow.setOrigin(0.5, 0.5);
+    this.textMain = new Phaser.GameObjects.Text(scene, 0, 0, text, {
+      fontFamily: '"Press Start 2P", monospace',
       fontSize: `${fontSize}px`,
       color: '#ffffff',
       fontStyle: 'bold',
       align: 'center',
-      stroke: '#222',
-      strokeThickness: 2,
-      shadow: {
-        offsetX: 0,
-        offsetY: 2,
-        color: '#000',
-        blur: 4,
-        fill: true
-      }
     });
-    this.label.setOrigin(0.5, 0.5);
-    this.width = this.label.width + this.padding * 2;
-    this.height = this.label.height + this.padding * 1.5;
+    this.textMain.setOrigin(0.5, 0.5);
 
-    // Shadow for 3D effect (soft, blurred)
-    this.shadow = new Phaser.GameObjects.Rectangle(scene, 0, 6, this.width, this.height, 0x000000, 0.18);
-    this.shadow.setOrigin(0.5, 0.5);
-    this.shadow.setStrokeStyle();
+    this.width = Math.max(this.textShadow.width, this.textMain.width) + this.padding * 2;
+    this.height = Math.max(this.textShadow.height, this.textMain.height) + this.padding * 1.5;
 
-    // Button background with dynamic gradient based on color
-    const bgGfx = scene.add.graphics();
-    // Calculate lighter color for the top of the gradient
-    const baseColor = Phaser.Display.Color.IntegerToColor(color);
-    const lighterColor = Phaser.Display.Color.Interpolate.ColorWithColor(
-      baseColor,
-      new Phaser.Display.Color(255, 255, 255),
-      100,
-      40 // percent lighter
-    );
-    const lighterHex = Phaser.Display.Color.GetColor(lighterColor.r, lighterColor.g, lighterColor.b);
-    // Draw vertical gradient by filling horizontal lines
-    for (let i = 0; i < this.height; i++) {
-      const t = i / (this.height - 1);
-      const r = Phaser.Math.Interpolation.Linear([lighterColor.r, baseColor.red], t);
-      const g = Phaser.Math.Interpolation.Linear([lighterColor.g, baseColor.green], t);
-      const b = Phaser.Math.Interpolation.Linear([lighterColor.b, baseColor.blue], t);
-      const lineColor = Phaser.Display.Color.GetColor(r, g, b);
-      bgGfx.fillStyle(lineColor, 1);
-      bgGfx.fillRoundedRect(0, i, this.width, 1, 10);
-    }
-    // Draw border
-    bgGfx.lineStyle(2, 0x3a7bd5, 0.7);
-    bgGfx.strokeRoundedRect(0, 0, this.width, this.height, 10);
-    // Generate texture and use as background
-    const texKey = `button-gradient-${color}-${this.width}x${this.height}`;
-    bgGfx.generateTexture(texKey, this.width, this.height);
-    bgGfx.destroy();
-    this.bg = new Phaser.GameObjects.Image(scene, 0, 0, texKey);
-    this.bg.setDisplaySize(this.width, this.height);
-    this.bg.setOrigin(0.5, 0.5);
-    this.bg.setAlpha(1);
+    // Draw the side (bottom) rectangle
+    this.sideRect = new Phaser.GameObjects.Graphics(scene);
+    this.sideRect.fillStyle(this.darkColor, 1);
+    this.sideRect.fillRoundedRect(-this.width/2, -this.height/2 + 4, this.width, this.height, 12);
 
-    // Embossed effect: subtle highlight at the top
-    this.emboss = new Phaser.GameObjects.Graphics(scene);
-    this.emboss.lineStyle(2, 0xffffff, 0.18);
-    this.emboss.beginPath();
-    this.emboss.moveTo(-this.width/2 + 8, -this.height/2 + 8);
-    this.emboss.lineTo(this.width/2 - 8, -this.height/2 + 8);
-    this.emboss.strokePath();
+    // Draw the top rectangle (main color), offset up by 4px
+    this.topRect = new Phaser.GameObjects.Graphics(scene);
+    this.topRect.fillStyle(this.color, 1);
+    this.topRect.fillRoundedRect(-this.width/2, -this.height/2, this.width, this.height, 12);
+    this.topRect.lineStyle(2, 0xffffff, 0.12);
+    this.topRect.strokeRoundedRect(-this.width/2, -this.height/2, this.width, this.height, 12);
 
-    // Container (do not add to scene directly)
-    this.container = new Phaser.GameObjects.Container(scene, 0, 0, [this.shadow, this.bg, this.emboss, this.label]);
+    // Position text layers (centered in the button)
+    this.textShadow.setPosition(0, -1); // 1px down for emboss
+    this.textMain.setPosition(0, 0);
+
+    // Compose container (side, top, text shadow, text main)
+    this.container = new Phaser.GameObjects.Container(scene, 0, 0, [this.sideRect, this.topRect, this.textShadow, this.textMain]);
     this.container.setSize(this.width, this.height);
-    this.container.setInteractive(new Phaser.Geom.Rectangle(-this.width/2, -this.height/2, this.width, this.height), Phaser.Geom.Rectangle.Contains);
+    // Set the interactive area to match the top rectangle (centered)
+    this.container.setInteractive(new Phaser.Geom.Rectangle(0, 0, this.width, this.height), Phaser.Geom.Rectangle.Contains);
     this.container.setScrollFactor(0);
     this.container.setAlpha(1);
     this.container.setVisible(false);
 
-    // Hover effect
+    // Pointer events on the container
     this.container.on('pointerover', () => {
-      this.bg.setAlpha(0.96);
-      this.label.setColor('#ffe066');
-      this.scene.tweens.add({ targets: this.container, scale: 1.04, duration: 100, ease: 'Sine.easeOut' });
+      this.textMain.setColor('#ffe066');
     });
     this.container.on('pointerout', () => {
-      this.bg.setAlpha(1);
-      this.label.setColor('#ffffff');
-      this.scene.tweens.add({ targets: this.container, scale: 1, duration: 100, ease: 'Sine.easeIn' });
+      this.textMain.setColor('#ffffff');
+      this.topRect.y = 0;
+      this.textShadow.y = -1;
+      this.textMain.y = 0;
     });
-    // Pressed effect
-    this.container.on('pointerdown', () => {
-      this.scene.tweens.add({ targets: this.container, y: "+=3", scale: 0.97, duration: 60, ease: 'Sine.easeInOut' });
-      this.shadow.setY(2); // shrink shadow
-      this.bg.setAlpha(0.92);
+    this.container.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
+      this.topRect.y = 4;
+      this.textShadow.y = 3;
+      this.textMain.y = 4;
     });
     this.container.on('pointerup', () => {
-      this.scene.tweens.add({ targets: this.container, y: "-=3", scale: 1, duration: 80, ease: 'Sine.easeInOut' });
-      this.shadow.setY(6); // restore shadow
-      this.bg.setAlpha(1);
+      this.topRect.y = 0;
+      this.textShadow.y = -1;
+      this.textMain.y = 0;
       if (this.callback) this.callback();
     });
   }
 
   show(props: { x: number; y: number }) {
-    // Position is relative to the parent container (the window), not the scene
-    this.container.setPosition(props.x, props.y);
     this.container.setVisible(true);
     this.container.setAlpha(1);
-    this.container.setScrollFactor(0); // Make button fixed to screen like other UI elements
+    this.container.setScrollFactor(0);
   }
   hide() {
     this.container.setVisible(false);
   }
   destroy() {
     this.container.destroy();
-  }
-  get displayObject() {
-    return this.container;
   }
 } 

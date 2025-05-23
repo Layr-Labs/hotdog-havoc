@@ -401,16 +401,16 @@ export class EditorState extends BaseState {
           this.inputField = new InputField(this.scene);
           // Add label above the input field, left-aligned
           const label = new LabelComponent(this.scene, 'Level Name', 12);
-          this.window.addChild(-200, -80, label);
-          this.window.addChild(0, -50, this.inputField, { width: 400, fontSize: 12 });
+          this.window.addChild(-200, -40, label);
+          this.window.addChild(0, -10, this.inputField, { width: 400, fontSize: 12 });
           // Add Save button below input field, centered
           const saveButton = new ButtonComponent(this.scene, 'Save', 16, 0x27ae60, () => {});
-          this.window.addChild(0,120, saveButton);
+          this.window.addChild(0,40, saveButton);
           this.window.show({
             x: this.scene.scale.width / 2,
             y: this.scene.scale.height / 2,
             width: 500,
-            height: 300
+            height: 180
           });
         }
       }

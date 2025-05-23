@@ -3,6 +3,7 @@ import { BaseState } from './BaseState';
 import { GameStateType } from './GameState';
 import { GameEventEmitter, GameEventType } from './GameEvents';
 import { createSkyGradient } from '../utils/gradientUtils';
+import { Window } from '../components/Window';
 
 interface Block {
   x: number;
@@ -10,7 +11,9 @@ interface Block {
 }
 
 export class EditorState extends BaseState {
-  private backButton: Phaser.GameObjects.Text | null = null;
+  private backButton: Phaser.GameObjects.Image | null = null;
+  private floppyButton: Phaser.GameObjects.Image | null = null;
+  private window: Window | null = null;
   private bgImage: Phaser.GameObjects.Image | null = null;
   private coordText: Phaser.GameObjects.Text | null = null;
   private gridGraphics: Phaser.GameObjects.Graphics | null = null;
@@ -42,8 +45,10 @@ export class EditorState extends BaseState {
     this.setupBackground();
     this.drawGrid();
     this.setupBackButton();
+    this.setupFloppyButton();
     this.setupCoordDisplay();
     this.setupTilemap();
+    this.window = new Window(this.scene);
     this.scene.input.on('pointermove', this.updateCoordDisplay, this);
     this.scene.input.on('pointerdown', this.handleBlockPointerDown, this);
     this.scene.input.on('pointermove', this.handleBlockPointerMove, this);
@@ -74,6 +79,8 @@ export class EditorState extends BaseState {
   protected onDestroy(): void {
     if (this.bgImage) this.bgImage.destroy();
     if (this.backButton) this.backButton.destroy();
+    if (this.floppyButton) this.floppyButton.destroy();
+    if (this.window) this.window.destroy();
     if (this.coordText) this.coordText.destroy();
     if (this.gridGraphics) this.gridGraphics.destroy();
     if (this.blockGraphics) this.blockGraphics.destroy();
@@ -116,17 +123,38 @@ export class EditorState extends BaseState {
   }
 
   private handleBlockPointerDown(pointer: Phaser.Input.Pointer): void {
+    // If window is visible, don't allow any block placement
+    if (this.window && this.window.isVisible()) {
+      return;
+    }
+
     if (this.shouldIgnoreNextClick) {
       this.shouldIgnoreNextClick = false;
       return;
     }
+
+    // Check if we clicked on the floppy button
+    if (this.floppyButton && this.floppyButton.getBounds().contains(pointer.x, pointer.y)) {
+      return;
+    }
+
     this.isDrawing = true;
     const deleteMode = pointer.event.shiftKey;
     this.addBlockAtPointer(pointer, deleteMode);
   }
 
   private handleBlockPointerMove(pointer: Phaser.Input.Pointer): void {
+    // If window is visible, don't allow any block placement
+    if (this.window && this.window.isVisible()) {
+      return;
+    }
+
     if (this.isDrawing) {
+      // Check if we're over the floppy button
+      if (this.floppyButton && this.floppyButton.getBounds().contains(pointer.x, pointer.y)) {
+        return;
+      }
+
       const deleteMode = pointer.event.shiftKey;
       this.addBlockAtPointer(pointer, deleteMode);
     }
@@ -263,58 +291,118 @@ export class EditorState extends BaseState {
     // Redraw grid first
     this.drawGrid();
 
-    // Update back button position
+    // Update button positions
     if (this.backButton) {
       this.backButton.setX(width - 32);
+    }
+    if (this.floppyButton) {
+      this.floppyButton.setX(width - 64);
     }
   }
 
   private setupBackButton(): void {
-    this.backButton = this.scene.add.text(this.scene.scale.width - 32, 24, 'Back', {
-      fontFamily: '"Press Start 2P", monospace',
-      fontSize: '16px',
-      color: '#fff',
-      align: 'right',
-    });
-    this.addGameObject(this.backButton);
-    this.backButton.setOrigin(1, 0);
-    this.backButton.setInteractive({ useHandCursor: true });
+    this.backButton = this.scene.add.image(this.scene.scale.width - 32, 24, 'back');
+    this.backButton.setOrigin(0.5, 0.5);
+    this.backButton.setScale(0.5);
     this.backButton.setScrollFactor(0);
+    this.backButton.setInteractive({ useHandCursor: true });
+    
     this.backButton.on('pointerover', () => {
       if (this.backButton) {
-        this.backButton.setColor('#ffe066');
         this.scene.tweens.add({ 
           targets: this.backButton, 
-          scale: 1.12, 
+          scale: 0.55, 
           duration: 120, 
           ease: 'Sine.easeOut' 
         });
       }
     });
+
     this.backButton.on('pointerout', () => {
       if (this.backButton) {
-        this.backButton.setColor('#fff');
         this.scene.tweens.add({ 
           targets: this.backButton, 
-          scale: 1, 
+          scale: 0.5, 
           duration: 120, 
           ease: 'Sine.easeIn' 
         });
       }
     });
+
     this.backButton.on('pointerdown', () => {
-      this.scene.tweens.add({ 
-        targets: this.backButton, 
-        scale: 0.95, 
-        duration: 80, 
-        yoyo: true, 
-        ease: 'Sine.easeInOut' 
-      });
+      if (this.backButton) {
+        this.scene.tweens.add({ 
+          targets: this.backButton, 
+          scale: 0.45, 
+          duration: 80, 
+          yoyo: true, 
+          ease: 'Sine.easeInOut' 
+        });
+      }
       GameEventEmitter.emit({
         type: GameEventType.STATE_CHANGE,
         data: { state: GameStateType.MENU }
       });
     });
+
+    this.addGameObject(this.backButton);
+  }
+
+  private setupFloppyButton(): void {
+    this.floppyButton = this.scene.add.image(this.scene.scale.width - 64, 24, 'floppy');
+    this.floppyButton.setOrigin(0.5, 0.5);
+    this.floppyButton.setScale(0.5);
+    this.floppyButton.setScrollFactor(0);
+    this.floppyButton.setInteractive({ useHandCursor: true });
+    
+    this.floppyButton.on('pointerover', () => {
+      if (this.floppyButton) {
+        this.scene.tweens.add({ 
+          targets: this.floppyButton, 
+          scale: 0.55, 
+          duration: 120, 
+          ease: 'Sine.easeOut' 
+        });
+      }
+    });
+
+    this.floppyButton.on('pointerout', () => {
+      if (this.floppyButton) {
+        this.scene.tweens.add({ 
+          targets: this.floppyButton, 
+          scale: 0.5, 
+          duration: 120, 
+          ease: 'Sine.easeIn' 
+        });
+      }
+    });
+
+    this.floppyButton.on('pointerdown', () => {
+      if (this.floppyButton) {
+        this.scene.tweens.add({ 
+          targets: this.floppyButton, 
+          scale: 0.45, 
+          duration: 80, 
+          yoyo: true, 
+          ease: 'Sine.easeInOut' 
+        });
+      }
+      
+      if (this.window) {
+        if (this.window.isVisible()) {
+          this.window.hide();
+        } else {
+          this.window.show({
+            x: this.scene.scale.width / 2,
+            y: this.scene.scale.height / 2,
+            width: 300,
+            height: 300
+          });
+        }
+      }
+    });
+
+    this.addGameObject(this.floppyButton);
   }
 
   private setupCoordDisplay(): void {

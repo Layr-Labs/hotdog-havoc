@@ -4,13 +4,14 @@ import { GameStateType } from './GameState';
 import { GameEventEmitter, GameEventType } from './GameEvents';
 import { createSkyGradient } from '../utils/gradientUtils';
 import WalletStore from '../utils/WalletStore';
+import { ButtonComponent } from '../components/ButtonComponent';
 
 export class TitleState extends BaseState {
   private titleImage: Phaser.GameObjects.Image | null = null;
-  private startText: Phaser.GameObjects.Text | null = null;
   private hotdogLeft: Phaser.GameObjects.Image | null = null;
   private hotdogRight: Phaser.GameObjects.Image | null = null;
   private bgImage: Phaser.GameObjects.Image | null = null;
+  private connectButton: ButtonComponent | null = null;
 
   protected onCreate(): void {
     this.setupBackground();
@@ -26,9 +27,12 @@ export class TitleState extends BaseState {
     // Clean up game objects
     if (this.bgImage) { this.bgImage.destroy(); this.bgImage = null; }
     if (this.titleImage) { this.titleImage.destroy(); this.titleImage = null; }
-    if (this.startText) { this.startText.destroy(); this.startText = null; }
     if (this.hotdogLeft) { this.hotdogLeft.destroy(); this.hotdogLeft = null; }
     if (this.hotdogRight) { this.hotdogRight.destroy(); this.hotdogRight = null; }
+    if (this.connectButton) {
+      this.connectButton.displayObject.destroy();
+      this.connectButton = null;
+    }
     this.scene.scale.off('resize', this.handleResize, this);
     this.gameObjects = [];
   }
@@ -41,9 +45,9 @@ export class TitleState extends BaseState {
     // Destroy and null out all dynamic objects
     if (this.bgImage) { this.bgImage.destroy(); this.bgImage = null; }
     if (this.titleImage) { this.titleImage.destroy(); this.titleImage = null; }
-    if (this.startText) { this.startText.destroy(); this.startText = null; }
     if (this.hotdogLeft) { this.hotdogLeft.destroy(); this.hotdogLeft = null; }
     if (this.hotdogRight) { this.hotdogRight.destroy(); this.hotdogRight = null; }
+    if (this.connectButton) { this.connectButton.displayObject.destroy(); this.connectButton = null; }
 
     // Clear the gameObjects array to prevent duplicates
     this.gameObjects = [];
@@ -103,98 +107,55 @@ export class TitleState extends BaseState {
   }
 
   private showTitleScreenRest(scale: number): void {
-    // Add connect wallet text
-    const textY = this.titleImage!.y + (this.titleImage!.displayHeight / 2) + 40;
-    const startTextY = this.scene.scale.height + 100;
+    // Add connect wallet button
     // Responsive font size: clamp between 16px and 24px based on width (1.5%)
+    const textY = this.titleImage!.y + (this.titleImage!.displayHeight / 2) + 40;
     const fontSize = Math.max(16, Math.min(24, Math.floor(this.scene.scale.width * 0.015)));
-    this.startText = this.scene.add.text(this.scene.scale.width / 2, startTextY, 'Connect Wallet to Start', {
-      fontFamily: '"Press Start 2P", monospace',
-      fontSize: `${fontSize}px`,
-      color: '#fff',
-      align: 'center',
-    });
-    this.addGameObject(this.startText);
-    this.startText.setOrigin(0.5, 0);
-    this.startText.setDepth(10);
-
-    // Bounce in from the bottom
+    this.connectButton = new ButtonComponent(
+      this.scene,
+      'Connect Wallet',
+      fontSize,
+      0x1976d2, // darker blue
+      async () => {
+        if (typeof window.ethereum !== 'undefined') {
+          try {
+            const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+            if (accounts.length > 0) {
+              WalletStore.setAddress(accounts[0]);
+              this.scene.time.delayedCall(100, () => {
+                GameEventEmitter.emit({
+                  type: GameEventType.WALLET_CONNECTED,
+                  data: { address: accounts[0] }
+                });
+                GameEventEmitter.emit({
+                  type: GameEventType.STATE_CHANGE,
+                  data: { state: GameStateType.MENU }
+                });
+              });
+            }
+          } catch (error) {
+            console.error('Failed to connect wallet:', error);
+          }
+        } else {
+          alert('Please install MetaMask to use this feature');
+        }
+      }
+    );
+    // Start off-screen, animate in
+    this.connectButton.show({x:0,y:0});
+    this.scene.add.existing(this.connectButton.displayObject);
+    this.connectButton.displayObject.setPosition(this.scene.scale.width / 2, this.scene.scale.height + 200);
+    this.connectButton.displayObject.setDepth(10000);
     this.scene.tweens.add({
-      targets: this.startText,
+      targets: this.connectButton.displayObject,
       y: textY,
       ease: 'Bounce.easeOut',
       duration: 900,
-      delay: 200,
-      onComplete: () => {
-        this.setupWalletConnect();
-      }
+      delay: 200
     });
 
     // Add hotdog images
     this.addHotdogImages();
-  }
-
-  private setupWalletConnect(): void {
-    if (!this.startText) return;
-
-    this.startText.setInteractive({ useHandCursor: true });
-    
-    this.startText.on('pointerover', () => {
-      this.scene.tweens.add({
-        targets: this.startText,
-        scale: 1.12,
-        duration: 120,
-        ease: 'Sine.easeOut',
-      });
-      this.startText!.setColor('#ffe066');
-    });
-
-    this.startText.on('pointerout', () => {
-      this.scene.tweens.add({
-        targets: this.startText,
-        scale: 1,
-        duration: 120,
-        ease: 'Sine.easeIn',
-      });
-      this.startText!.setColor('#fff');
-    });
-
-    this.startText.on('pointerdown', async () => {
-      this.scene.tweens.add({
-        targets: this.startText,
-        scale: 0.95,
-        duration: 80,
-        yoyo: true,
-        ease: 'Sine.easeInOut',
-      });
-
-      if (typeof window.ethereum !== 'undefined') {
-        try {
-          const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
-          if (accounts.length > 0) {
-            // Set wallet address globally
-            WalletStore.setAddress(accounts[0]);
-            // First emit wallet connected event
-            GameEventEmitter.emit({
-              type: GameEventType.WALLET_CONNECTED,
-              data: { address: accounts[0] }
-            });
-
-            // Then emit state change event after a short delay to ensure wallet event is processed
-            this.scene.time.delayedCall(100, () => {
-              GameEventEmitter.emit({
-                type: GameEventType.STATE_CHANGE,
-                data: { state: GameStateType.MENU }
-              });
-            });
-          }
-        } catch (error) {
-          console.error('Failed to connect wallet:', error);
-        }
-      } else {
-        alert('Please install MetaMask to use this feature');
-      }
-    });
   }
 
   private addHotdogImages(): void {

@@ -10,6 +10,7 @@ interface InputFieldProps {
 
 export class InputField {
   private scene: Phaser.Scene;
+  private parent: Phaser.GameObjects.Container | null = null;
   private graphics: Phaser.GameObjects.Graphics;
   private text!: Phaser.GameObjects.Text;
   private cursor!: Phaser.GameObjects.Rectangle;
@@ -18,7 +19,6 @@ export class InputField {
   private isFocused: boolean = false;
   private padding: number = 8;
   private height: number;
-  private parent: Phaser.GameObjects.Container | null = null;
   private cursorIndex: number = 0;
   private scrollOffset: number = 0;
   private visibleText: string = '';
@@ -30,6 +30,31 @@ export class InputField {
     this.scene = scene;
     this.graphics = scene.add.graphics();
     this.height = 0; // Will be set in show()
+    // Create container for all elements
+    this.parent = this.scene.add.container(0, 0);
+    this.parent.setVisible(false);
+    // Draw background (will be updated in show)
+    this.parent.add(this.graphics);
+    // Create text object
+    this.text = this.scene.add.text(0, 0, '', {
+      fontFamily: '"Press Start 2P", monospace',
+      fontSize: `12px`,
+      color: '#000000',
+      align: 'left'
+    });
+    this.text.setOrigin(0, 0.5);
+    this.parent.add(this.text);
+    // Create cursor
+    this.cursor = this.scene.add.rectangle(0, 0, 2, 12, 0x000000);
+    this.cursor.setOrigin(0, 0.5);
+    this.cursor.setVisible(false);
+    this.parent.add(this.cursor);
+    // Handle keyboard input
+    if (this.scene.input.keyboard) {
+      this.scene.input.keyboard.on('keydown', this.handleKeyDown, this);
+    }
+    this.cursorIndex = this.value.length;
+    this.scrollOffset = 0;
   }
 
   show(props: InputFieldProps) {
@@ -38,76 +63,56 @@ export class InputField {
     this.width = width;
     this.fontSize = fontSize;
     this.scrollStart = 0;
-
-    // Create container for all elements
-    this.parent = this.scene.add.container(x, y);
-    this.parent.setScrollFactor(scrollFactor);
-
-    // Draw background
+    if (!this.parent) return;
+    // Update background
     this.graphics.clear();
     this.graphics.fillStyle(0xffffff, 1);
     this.graphics.fillRoundedRect(-width/2, -this.height/2, width, this.height, 4);
-    this.parent.add(this.graphics);
-
-    // Create text object
-    this.text = this.scene.add.text(0, 0, '', {
-      fontFamily: '"Press Start 2P", monospace',
-      fontSize: `${fontSize}px`,
-      color: '#000000',
-      align: 'left'
-    });
-    this.text.setOrigin(0, 0.5);
+    // Update text and cursor font size/position
+    this.text.setFontSize(fontSize);
     this.text.setX(-width/2 + this.padding);
-    this.parent.add(this.text);
-
-    // Create cursor
-    this.cursor = this.scene.add.rectangle(0, 0, 2, fontSize, 0x000000);
-    this.cursor.setOrigin(0, 0.5);
+    this.cursor.setSize(2, fontSize);
     this.cursor.setX(-width/2 + this.padding);
-    this.cursor.setVisible(false);
-    this.parent.add(this.cursor);
-
-    // Make the input field interactive
-    this.parent.setInteractive(new Phaser.Geom.Rectangle(-width/2, -this.height/2, width, this.height), Phaser.Geom.Rectangle.Contains);
-    
-    // Handle focus and set cursor position on click
-    this.parent.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
-      this.setFocused(true);
-      // Only set cursor if clicking inside the text area
-      const localX = pointer.x - this.parent!.x;
-      const textStartX = this.text.x;
-      let minDist = Infinity;
-      let bestIndex = 0;
-      // Use a temp text object to measure each substring
-      const tempText = this.scene.add.text(0, 0, '', {
-        fontFamily: '"Press Start 2P", monospace',
-        fontSize: `${this.fontSize}px`,
-        color: '#000000',
-        align: 'left',
-        maxLines: 1
-      });
-      for (let i = 0; i <= this.visibleText.length; i++) {
-        tempText.setText(this.visibleText.substring(0, i));
-        const charX = textStartX + tempText.displayWidth;
-        const dist = Math.abs(localX - charX);
-        if (dist < minDist) {
-          minDist = dist;
-          bestIndex = i;
+    // Update container position and visibility
+    this.parent.setPosition(x, y);
+    this.parent.setScrollFactor(scrollFactor);
+    this.parent.setVisible(true);
+    // Wait 1 second before attaching interactive area and pointerdown handler
+    this.scene.time.delayedCall(1000, () => {
+      if (!this.parent) return;
+      this.parent.setInteractive(new Phaser.Geom.Rectangle(-width/2, -this.height/2, width, this.height), Phaser.Geom.Rectangle.Contains);
+      this.parent.off('pointerdown');
+      this.parent.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
+        this.setFocused(true);
+        // Only set cursor if clicking inside the text area
+        const localX = pointer.x - this.parent!.x;
+        const textStartX = this.text.x;
+        let minDist = Infinity;
+        let bestIndex = 0;
+        // Use a temp text object to measure each substring
+        const tempText = this.scene.add.text(0, 0, '', {
+          fontFamily: '"Press Start 2P", monospace',
+          fontSize: `${this.fontSize}px`,
+          color: '#000000',
+          align: 'left',
+          maxLines: 1
+        });
+        for (let i = 0; i <= this.visibleText.length; i++) {
+          tempText.setText(this.visibleText.substring(0, i));
+          const charX = textStartX + tempText.displayWidth;
+          const dist = Math.abs(localX - charX);
+          if (dist < minDist) {
+            minDist = dist;
+            bestIndex = i;
+          }
         }
-      }
-      tempText.destroy();
-      // Adjust for scroll offset
-      const start = this.value.indexOf(this.visibleText);
-      this.cursorIndex = (start >= 0 ? start : 0) + bestIndex;
-      this.updateText();
+        tempText.destroy();
+        // Adjust for scroll offset
+        const start = this.value.indexOf(this.visibleText);
+        this.cursorIndex = (start >= 0 ? start : 0) + bestIndex;
+        this.updateText();
+      });
     });
-
-    // Handle keyboard input
-    if (this.scene.input.keyboard) {
-      this.scene.input.keyboard.on('keydown', this.handleKeyDown, this);
-    }
-    this.cursorIndex = this.value.length;
-    this.scrollOffset = 0;
     this.updateText();
   }
 
@@ -270,14 +275,17 @@ export class InputField {
 
   hide() {
     if (this.parent) {
-      this.parent.destroy();
-      this.parent = null;
+      this.parent.setVisible(false);
     }
     this.setFocused(false);
   }
 
   destroy() {
     this.hide();
+    if (this.parent) {
+      this.parent.destroy();
+      this.parent = null;
+    }
     if (this.scene.input.keyboard) {
       this.scene.input.keyboard.off('keydown', this.handleKeyDown, this);
     }

@@ -5,6 +5,7 @@ import { GameEventEmitter, GameEventType } from './GameEvents';
 import { createSkyGradient } from '../utils/gradientUtils';
 import { Window } from '../components/Window';
 import { InputField } from '../components/InputField';
+import { LabelComponent } from '../components/LabelComponent';
 
 interface Block {
   x: number;
@@ -394,16 +395,19 @@ export class EditorState extends BaseState {
           }
           this.window.hide();
         } else {
+
+          // Create and show the input field
+          this.inputField = new InputField(this.scene);
+          // Add label above the input field, left-aligned
+          const label = new LabelComponent(this.scene, 'Level Name', 12);
+          this.window.addChild(-200, -80, label);
+          this.window.addChild(0, -50, this.inputField, { width: 400, fontSize: 12 });
           this.window.show({
             x: this.scene.scale.width / 2,
             y: this.scene.scale.height / 2,
-            width: 300,
+            width: 500,
             height: 300
           });
-          
-          // Create and show the input field
-          this.inputField = new InputField(this.scene);
-          this.window.addChild(0, -50, this.inputField, { width: 200, fontSize: 12 });
         }
       }
     });

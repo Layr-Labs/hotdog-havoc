@@ -18,11 +18,17 @@ export class Window {
   private windowWidth: number = 0;
   private windowHeight: number = 0;
   private children: { x: number; y: number; component: any; props?: any }[] = [];
+  private container: Phaser.GameObjects.Container;
 
   constructor(scene: Phaser.Scene) {
     this.scene = scene;
     this.graphics = scene.add.graphics();
     this.graphics.setScrollFactor(0);
+    this.container = scene.add.container(0, 0);
+    this.container.setAlpha(0);
+    this.container.setScale(0.8);
+    this.container.setVisible(false);
+    this.container.add(this.graphics);
   }
 
   show(props: WindowProps) {
@@ -34,14 +40,19 @@ export class Window {
     this.windowWidth = width;
     this.windowHeight = height;
 
+    // Position the container at the window center
+    this.container.setPosition(x, y);
+    this.container.setDepth(1000);
+    this.container.setVisible(true);
+
     // Draw semi-transparent black background
     this.graphics.clear();
     this.graphics.fillStyle(0x000000, 0.5);
-    this.graphics.fillRect(this.startX, this.startY, width, height);
+    this.graphics.fillRect(-width/2, -height/2, width, height);
     
     // Draw white border
     this.graphics.lineStyle(1, 0xffffff, 1);
-    this.graphics.strokeRect(this.startX, this.startY, width, height);
+    this.graphics.strokeRect(-width/2, -height/2, width, height);
     
     this.visible = true;
 
@@ -50,7 +61,7 @@ export class Window {
       this.closeButton.destroy();
     }
     const padding = 16; // Equal padding for top and right
-    this.closeButton = this.scene.add.text(this.startX + width - padding, this.startY + padding, 'X', {
+    this.closeButton = this.scene.add.text(width/2 - padding, -height/2 + padding, 'X', {
       fontFamily: '"Press Start 2P", monospace',
       fontSize: '16px',
       color: '#ffffff',
@@ -59,6 +70,7 @@ export class Window {
     this.closeButton.setOrigin(0.5, 0.5);
     this.closeButton.setInteractive({ useHandCursor: true });
     this.closeButton.setScrollFactor(scrollFactor);
+    this.container.add(this.closeButton);
 
     // Add hover effects
     this.closeButton.on('pointerover', () => {
@@ -105,43 +117,62 @@ export class Window {
     this.children.forEach(child => {
       if (child.component) {
         child.component.show({
-          x: x + child.x,
-          y: y + child.y,
+          x: child.x,
+          y: child.y,
           scrollFactor: scrollFactor,
           ...(child.props || {})
         });
+        // Add the display object to the container
+        if (child.component.parent) {
+          this.container.add(child.component.parent);
+        } else if (child.component.text) {
+          this.container.add(child.component.text);
+        }
       }
+    });
+
+    // Animate fade+scale in
+    this.container.setAlpha(0);
+    this.container.setScale(0.8);
+    this.scene.tweens.add({
+      targets: this.container,
+      alpha: 1,
+      scale: 1,
+      duration: 300,
+      ease: 'Back.Out'
     });
   }
 
   addChild(x: number, y: number, component: any, props?: any) {
     this.children.push({ x, y, component, props });
-    if (this.visible && component) {
-      const centerX = this.startX + (this.windowWidth / 2);
-      const centerY = this.startY + (this.windowHeight / 2);
-      component.show({
-        x: centerX + x,
-        y: centerY + y,
-        scrollFactor: 0,
-        ...(props || {})
-      });
-    }
+    // No need to show or add to container here; handled in show()
   }
 
   hide() {
-    this.graphics.clear();
-    if (this.closeButton) {
-      this.closeButton.destroy();
-      this.closeButton = null;
-    }
-    // Hide all child components
-    this.children.forEach(child => {
-      if (child.component) {
-        child.component.hide();
+    // Animate fade+scale out
+    this.scene.tweens.add({
+      targets: this.container,
+      alpha: 0,
+      scale: 0.8,
+      duration: 200,
+      ease: 'Back.In',
+      onComplete: () => {
+        this.container.setVisible(false);
+        this.graphics.clear();
+        if (this.closeButton) {
+          this.closeButton.destroy();
+          this.closeButton = null;
+        }
+        // Hide all child components
+        this.children.forEach(child => {
+          if (child.component) {
+            child.component.hide();
+          }
+        });
+        this.visible = false;
+        this.children = [];
       }
     });
-    this.visible = false;
-    this.children = [];
   }
 
   isVisible(): boolean {

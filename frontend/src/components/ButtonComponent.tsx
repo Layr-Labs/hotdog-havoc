@@ -119,6 +119,7 @@ export class ButtonComponent {
   }
 
   show(props: { x: number; y: number }) {
+    this.container.setPosition(props.x, props.y);
     this.container.setVisible(true);
     this.container.setAlpha(1);
     this.container.setScrollFactor(0);

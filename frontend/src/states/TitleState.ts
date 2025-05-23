@@ -142,9 +142,8 @@ export class TitleState extends BaseState {
       }
     );
     // Start off-screen, animate in
-    this.connectButton.show({x:0,y:0});
+    this.connectButton.show({x:this.scene.scale.width / 2,y:this.scene.scale.height + 200});
     this.scene.add.existing(this.connectButton.displayObject);
-    this.connectButton.displayObject.setPosition(this.scene.scale.width / 2, this.scene.scale.height + 200);
     this.connectButton.displayObject.setDepth(10000);
     this.scene.tweens.add({
       targets: this.connectButton.displayObject,

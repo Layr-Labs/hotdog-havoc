@@ -339,6 +339,9 @@ export class EditorState extends BaseState {
           ease: 'Sine.easeInOut' 
         });
       }
+    });
+
+    this.backButton.on('pointerup', () => {
       GameEventEmitter.emit({
         type: GameEventType.STATE_CHANGE,
         data: { state: GameStateType.MENU }

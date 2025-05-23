@@ -4,12 +4,13 @@ import { GameStateType } from './GameState';
 import { GameEventEmitter, GameEventType } from './GameEvents';
 import { createSkyGradient } from '../utils/gradientUtils';
 import WalletStore from '../utils/WalletStore';
+import { ButtonComponent } from '../components/ButtonComponent';
 
 export class MenuState extends BaseState {
   private mainMenuImage: Phaser.GameObjects.Image | null = null;
   private menuOptionTexts: Phaser.GameObjects.Text[] = [];
   private walletText: Phaser.GameObjects.Text | null = null;
-  private disconnectText: Phaser.GameObjects.Text | null = null;
+  private disconnectButton: ButtonComponent | null = null;
   private bgImage: Phaser.GameObjects.Image | null = null;
 
   constructor(scene: Phaser.Scene) {
@@ -34,7 +35,10 @@ export class MenuState extends BaseState {
     this.menuOptionTexts.forEach(text => text.destroy());
     this.menuOptionTexts = [];
     if (this.walletText) { this.walletText.destroy(); this.walletText = null; }
-    if (this.disconnectText) { this.disconnectText.destroy(); this.disconnectText = null; }
+    if (this.disconnectButton) {
+      this.disconnectButton.displayObject.destroy();
+      this.disconnectButton = null;
+    }
     this.scene.scale.off('resize', this.handleResize, this);
     this.gameObjects = [];
   }
@@ -50,7 +54,10 @@ export class MenuState extends BaseState {
     this.menuOptionTexts.forEach(text => text.destroy());
     this.menuOptionTexts = [];
     if (this.walletText) { this.walletText.destroy(); this.walletText = null; }
-    if (this.disconnectText) { this.disconnectText.destroy(); this.disconnectText = null; }
+    if (this.disconnectButton) {
+      this.disconnectButton.displayObject.destroy();
+      this.disconnectButton = null;
+    }
 
     // Clear the gameObjects array to prevent duplicates
     this.gameObjects = [];
@@ -189,58 +196,27 @@ export class MenuState extends BaseState {
     this.walletText.setOrigin(0.5, 0);
     this.walletText.setDepth(10);
 
-    // Disconnect button
-    this.disconnectText = this.scene.add.text(this.scene.scale.width - 32, 24, 'Disconnect', {
-      fontFamily: '"Press Start 2P", monospace',
-      fontSize: '16px',
-      color: '#fff',
-      align: 'right',
-    });
-    this.addGameObject(this.disconnectText);
-    this.disconnectText.setOrigin(1, 0);
-    this.disconnectText.setInteractive({ useHandCursor: true });
-    this.disconnectText.setDepth(10);
-
-    // Hover effect
-    this.disconnectText.on('pointerover', () => {
-      this.disconnectText!.setColor('#ffe066');
-      this.scene.tweens.add({ 
-        targets: this.disconnectText, 
-        scale: 1.12, 
-        duration: 120, 
-        ease: 'Sine.easeOut' 
-      });
-    });
-
-    this.disconnectText.on('pointerout', () => {
-      this.disconnectText!.setColor('#fff');
-      this.scene.tweens.add({ 
-        targets: this.disconnectText, 
-        scale: 1, 
-        duration: 120, 
-        ease: 'Sine.easeIn' 
-      });
-    });
-
-    this.disconnectText.on('pointerdown', () => {
-      this.scene.tweens.add({ 
-        targets: this.disconnectText, 
-        scale: 0.95, 
-        duration: 80, 
-        yoyo: true, 
-        ease: 'Sine.easeInOut' 
-      });
-      
-      // Emit wallet disconnected event
-      GameEventEmitter.emit({
-        type: GameEventType.WALLET_DISCONNECTED
-      });
-      
-      // Emit state change event to return to title
-      GameEventEmitter.emit({
-        type: GameEventType.STATE_CHANGE,
-        data: { state: GameStateType.TITLE }
-      });
-    });
+    // Disconnect button as a red ButtonComponent
+    this.disconnectButton = new ButtonComponent(
+      this.scene,
+      'Disconnect',
+      16,
+      0xe53935, // red
+      () => {
+        // Emit wallet disconnected event
+        GameEventEmitter.emit({
+          type: GameEventType.WALLET_DISCONNECTED
+        });
+        // Emit state change event to return to title
+        GameEventEmitter.emit({
+          type: GameEventType.STATE_CHANGE,
+          data: { state: GameStateType.TITLE }
+        });
+      }
+    );
+    const btnWidth = this.disconnectButton.displayObject.width;
+    this.disconnectButton.show({ x: this.scene.scale.width - btnWidth/2 - 16, y: 32 });
+    this.scene.add.existing(this.disconnectButton.displayObject);
+    this.disconnectButton.displayObject.setDepth(10);
   }
 } 

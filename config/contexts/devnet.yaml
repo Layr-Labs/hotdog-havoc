@@ -69,9 +69,9 @@ context:
     - abi: .devkit/contracts/out/BN254CertificateVerifier.sol/BN254CertificateVerifier.json
       address: 0xFBc00Fa47a7d3bbE3e82B5Aa560B47008c1bD64c
       name: bn254CertificateVerifier
-    - abi: .devkit/contracts/out/HelloWorld.sol/HelloWorld.json
+    - abi: .devkit/contracts/out/HotdogHavoc.sol/HotdogHavoc.json
       address: 0x240A60DC5e0B9013Cb8CF39aa6f9dDd8f25E40D2
-      name: HelloWorld
+      name: HotdogHavoc
   operator_sets:
     - operator_set_id: 0
       strategies:

@@ -36,7 +36,7 @@ contract DeployMyContracts is Script {
         vm.startBroadcast(context.deployerPrivateKey);
         console.log("Deployer address:", vm.addr(context.deployerPrivateKey));
 
-        HotdogHavoc hotdogHavoc = new HotdogHavoc();
+        HotdogHavoc hotdogHavoc = new HotdogHavoc(address(context.taskMailbox));
 
         vm.stopBroadcast();
 

@@ -9,7 +9,7 @@ import {ITaskMailbox, ITaskMailboxTypes} from "@hourglass-monorepo/src/interface
 import {ITaskAVSRegistrar, ITaskAVSRegistrarTypes} from "@hourglass-monorepo/src/interfaces/avs/l1/ITaskAVSRegistrar.sol";
 import {IAVSTaskHook} from "@hourglass-monorepo/src/interfaces/avs/l2/IAVSTaskHook.sol";
 import {IBN254CertificateVerifier} from "@hourglass-monorepo/src/interfaces/avs/l2/IBN254CertificateVerifier.sol";
-import {HelloWorld} from "@project/HelloWorld.sol"; // Import your custom contract
+import {HotdogHavoc} from "@project/HotdogHavoc.sol"; // Import your custom contract
 
 contract DeployMyContracts is Script {
     using stdJson for string;
@@ -36,10 +36,7 @@ contract DeployMyContracts is Script {
         vm.startBroadcast(context.deployerPrivateKey);
         console.log("Deployer address:", vm.addr(context.deployerPrivateKey));
 
-        //TODO: Implement custom contracts deployment
-        // CustomContract customContract = new CustomContract();
-        // console.log("CustomContract deployed to:", address(customContract));
-        HelloWorld helloWorld = new HelloWorld();
+        HotdogHavoc hotdogHavoc = new HotdogHavoc();
 
         vm.stopBroadcast();
 
@@ -54,7 +51,7 @@ contract DeployMyContracts is Script {
         Output[] memory outputs = new Output[](1);
         // outputs[0] = Output({name: "CustomContract", address: address(customContract)});
         // _writeOutputToJson(environment, outputs);
-        outputs[0] = Output({name: "HelloWorld", contractAddress: address(helloWorld)});
+        outputs[0] = Output({name: "HotdogHavoc", contractAddress: address(hotdogHavoc)});
         _writeOutputToJson(environment, outputs);
     }
 

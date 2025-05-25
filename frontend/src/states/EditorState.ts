@@ -7,6 +7,7 @@ import { Window } from '../components/Window';
 import { InputField } from '../components/InputField';
 import { LabelComponent } from '../components/LabelComponent';
 import { ButtonComponent } from '../components/ButtonComponent';
+import { createLevel } from '../utils/contractUtils';
 
 interface Block {
   x: number;
@@ -407,7 +408,55 @@ export class EditorState extends BaseState {
           this.window.addChild(-200, -40, label);
           this.window.addChild(0, -10, this.inputField, { width: 400, fontSize: 12 });
           // Add Save button below input field, centered
-          const saveButton = new ButtonComponent(this.scene, 'Save', 16, 0x27ae60, () => {});
+          const saveButton = new ButtonComponent(this.scene, 'Save', 16, 0x27ae60, async () => {
+            const levelName = this.inputField?.getValue().trim();
+            if (!levelName) {
+              alert('Please enter a level name');
+              return;
+            }
+
+            // Convert worldMap to blocks array
+            const blocks: Block[] = [];
+            for (let x = 0; x < this.worldMap.length; x++) {
+              for (let y = 0; y < this.TILEMAP_HEIGHT; y++) {
+                if (this.worldMap[x][y]) {
+                  blocks.push({ x, y });
+                }
+              }
+            }
+
+            if (blocks.length === 0) {
+              alert('Please place at least one block');
+              return;
+            }
+
+            try {
+              const result = await createLevel(levelName, blocks);
+              console.log('Level created:', result);
+              alert(`Level created successfully! ID: ${result.levelId}`);
+              
+              // Clear the editor
+              this.blocks.clear();
+              this.redrawWorldTiles();
+              if (this.inputField) {
+                this.inputField.setValue('');
+              }
+              
+              // Hide the window
+              if (this.window) {
+                this.window.hide();
+              }
+              
+              // Return to menu
+              GameEventEmitter.emit({
+                type: GameEventType.STATE_CHANGE,
+                data: { state: GameStateType.MENU }
+              });
+            } catch (error) {
+              console.error('Error creating level:', error);
+              alert('Failed to create level. See console for details.');
+            }
+          });
           this.window.addChild(0,40, saveButton);
           this.window.show({
             x: this.scene.scale.width / 2,

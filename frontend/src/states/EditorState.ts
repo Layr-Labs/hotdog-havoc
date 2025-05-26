@@ -17,6 +17,7 @@ interface Block {
 export class EditorState extends BaseState {
   private backButton: Phaser.GameObjects.Image | null = null;
   private floppyButton: Phaser.GameObjects.Image | null = null;
+  private loadButton: Phaser.GameObjects.Image | null = null;
   private window: Window | null = null;
   private bgImage: Phaser.GameObjects.Image | null = null;
   private coordText: Phaser.GameObjects.Text | null = null;
@@ -51,6 +52,7 @@ export class EditorState extends BaseState {
     this.drawGrid();
     this.setupBackButton();
     this.setupFloppyButton();
+    this.setupLoadButton();
     this.setupCoordDisplay();
     this.setupTilemap();
     this.window = new Window(this.scene);
@@ -80,6 +82,7 @@ export class EditorState extends BaseState {
     if (this.bgImage) this.bgImage.destroy();
     if (this.backButton) this.backButton.destroy();
     if (this.floppyButton) this.floppyButton.destroy();
+    if (this.loadButton) this.loadButton.destroy();
     if (this.window) this.window.destroy();
     if (this.coordText) this.coordText.destroy();
     if (this.gridGraphics) this.gridGraphics.destroy();
@@ -134,8 +137,9 @@ export class EditorState extends BaseState {
       return;
     }
 
-    // Check if we clicked on the floppy button
-    if (this.floppyButton && this.floppyButton.getBounds().contains(pointer.x, pointer.y)) {
+    // Check if we clicked on the floppy button or load button
+    if ((this.floppyButton && this.floppyButton.getBounds().contains(pointer.x, pointer.y)) ||
+        (this.loadButton && this.loadButton.getBounds().contains(pointer.x, pointer.y))) {
       return;
     }
 
@@ -151,8 +155,9 @@ export class EditorState extends BaseState {
     }
 
     if (this.isDrawing) {
-      // Check if we're over the floppy button
-      if (this.floppyButton && this.floppyButton.getBounds().contains(pointer.x, pointer.y)) {
+      // Check if we're over the floppy button or load button
+      if ((this.floppyButton && this.floppyButton.getBounds().contains(pointer.x, pointer.y)) ||
+          (this.loadButton && this.loadButton.getBounds().contains(pointer.x, pointer.y))) {
         return;
       }
 
@@ -299,6 +304,9 @@ export class EditorState extends BaseState {
     if (this.floppyButton) {
       this.floppyButton.setX(width - 64);
     }
+    if (this.loadButton) {
+      this.loadButton.setX(width - 96);
+    }
   }
 
   private setupBackButton(): void {
@@ -353,7 +361,7 @@ export class EditorState extends BaseState {
   }
 
   private setupFloppyButton(): void {
-    this.floppyButton = this.scene.add.image(this.scene.scale.width - 64, 24, 'floppy');
+    this.floppyButton = this.scene.add.image(this.scene.scale.width - 64, 24, 'save');
     this.floppyButton.setOrigin(0.5, 0.5);
     this.floppyButton.setScale(0.5);
     this.floppyButton.setScrollFactor(0);
@@ -400,7 +408,6 @@ export class EditorState extends BaseState {
           }
           this.window.hide();
         } else {
-
           // Create and show the input field
           this.inputField = new InputField(this.scene);
           // Add label above the input field, left-aligned
@@ -469,6 +476,51 @@ export class EditorState extends BaseState {
     });
 
     this.addGameObject(this.floppyButton);
+  }
+
+  private setupLoadButton(): void {
+    this.loadButton = this.scene.add.image(this.scene.scale.width - 96, 24, 'load');
+    this.loadButton.setOrigin(0.5, 0.5);
+    this.loadButton.setScale(0.5);
+    this.loadButton.setScrollFactor(0);
+    this.loadButton.setInteractive({ useHandCursor: true });
+    
+    this.loadButton.on('pointerover', () => {
+      if (this.loadButton) {
+        this.scene.tweens.add({ 
+          targets: this.loadButton, 
+          scale: 0.55, 
+          duration: 120, 
+          ease: 'Sine.easeOut' 
+        });
+      }
+    });
+
+    this.loadButton.on('pointerout', () => {
+      if (this.loadButton) {
+        this.scene.tweens.add({ 
+          targets: this.loadButton, 
+          scale: 0.5, 
+          duration: 120, 
+          ease: 'Sine.easeIn' 
+        });
+      }
+    });
+
+    this.loadButton.on('pointerdown', () => {
+      if (this.loadButton) {
+        this.scene.tweens.add({ 
+          targets: this.loadButton, 
+          scale: 0.45, 
+          duration: 80, 
+          yoyo: true, 
+          ease: 'Sine.easeInOut' 
+        });
+      }
+      // TODO: Implement load functionality
+    });
+
+    this.addGameObject(this.loadButton);
   }
 
   private setupCoordDisplay(): void {

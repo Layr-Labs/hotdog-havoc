@@ -98,12 +98,14 @@ export class ButtonComponent {
     // Pointer events on the container
     this.container.on('pointerover', () => {
       this.textMain.setColor('#ffe066');
+      this.scene.input.manager.canvas.style.cursor = 'pointer';
     });
     this.container.on('pointerout', () => {
       this.textMain.setColor('#ffffff');
       this.topRect.y = 0;
       this.textShadow.y = -1;
       this.textMain.y = 0;
+      this.scene.input.manager.canvas.style.cursor = 'default';
     });
     this.container.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
       this.topRect.y = 4;

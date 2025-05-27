@@ -549,7 +549,7 @@ export class EditorState extends BaseState {
             itemHeight: 24
           });
           // Add scroll list as a child of the window, upper left with margin
-          this.window.addChild(-width/2 + 20, -height/2 + 20, this.scrollList);
+          this.window.addChild( 0, 0, this.scrollList);
 
           // Show window first
           this.window.show({
@@ -564,8 +564,8 @@ export class EditorState extends BaseState {
             // Show scroll list after populating
             if (this.scrollList) {
               this.scrollList.show({
-                x: 0, // Top-left in window
-                y: 0
+                x: -this.window.getWidth()/2 + 20, // Top-left in window
+                y: -this.window.getHeight()/2 + 20
               });
             }
           });

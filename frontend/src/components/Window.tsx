@@ -117,9 +117,9 @@ export class Window {
     this.children.forEach(child => {
       if (child.component) {
         child.component.show({
-          x: child.x,
-          y: child.y,
-          ...(child.props || {})
+          ...(child.props || {}),
+          x: -this.windowWidth/2 + child.x,
+          y: -this.windowHeight/2 +child.y,
         });
         // Add the display object to the container at the correct offset
         if (child.component.displayObject) {
@@ -197,5 +197,13 @@ export class Window {
       child.component.destroy();
     });
     this.children = [];
+  }
+
+  getWidth(): number {
+    return this.windowWidth;
+  }
+
+  getHeight(): number {
+    return this.windowHeight;
   }
 } 

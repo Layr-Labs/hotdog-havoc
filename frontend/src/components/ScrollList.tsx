@@ -167,7 +167,7 @@ export class ScrollList {
   }
 
   show(props: { x: number; y: number }) {
-    this.container.setPosition(0, 0);
+    this.container.setPosition(props.x, props.y);
     this.container.setVisible(true);
   }
 

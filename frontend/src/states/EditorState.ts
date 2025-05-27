@@ -7,7 +7,9 @@ import { Window } from '../components/Window';
 import { InputField } from '../components/InputField';
 import { LabelComponent } from '../components/LabelComponent';
 import { ButtonComponent } from '../components/ButtonComponent';
-import { createLevel } from '../utils/contractUtils';
+import { createLevel, getOwnerLevels, getContract } from '../utils/contractUtils';
+import { ScrollList } from '../components/ScrollList';
+import { ethers } from 'ethers';
 
 interface Block {
   x: number;
@@ -40,6 +42,7 @@ export class EditorState extends BaseState {
   private landTileIndex: number = 0;
   private worldMap: boolean[][] = [];
   private inputField: InputField | null = null;
+  private scrollList: ScrollList | null = null;
 
   protected onCreate(): void {
     this.shouldIgnoreNextClick = true;
@@ -521,23 +524,79 @@ export class EditorState extends BaseState {
       if (this.window) {
         if (this.window.isVisible()) {
           this.window.hide();
+          if (this.scrollList) {
+            this.scrollList.destroy();
+            this.scrollList = null;
+          }
         } else {
           // Create a large window that takes up most of the screen
           const margin = 40; // pixels from edge
           const width = this.scene.scale.width - (margin * 2);
           const height = this.scene.scale.height - (margin * 2);
           
+          // Always create a new scroll list
+          if (this.scrollList) {
+            this.scrollList.destroy();
+            this.scrollList = null;
+          }
+          const scrollListWidth = width / 2;
+          const scrollListHeight = height - 40;
+          this.scrollList = new ScrollList(this.scene, {
+            width: scrollListWidth,
+            height: scrollListHeight,
+            items: [], // Will be populated below
+            fontSize: 16,
+            itemHeight: 24
+          });
+          // Add scroll list as a child of the window, upper left with margin
+          this.window.addChild(-width/2 + 20, -height/2 + 20, this.scrollList);
+
+          // Show window first
           this.window.show({
             x: this.scene.scale.width / 2,
             y: this.scene.scale.height / 2,
             width: width,
             height: height
           });
+
+          // Get owned levels and populate scroll list
+          this.populateScrollList().then(() => {
+            // Show scroll list after populating
+            if (this.scrollList) {
+              this.scrollList.show({
+                x: 0, // Top-left in window
+                y: 0
+              });
+            }
+          });
         }
       }
     });
 
     this.addGameObject(this.loadButton);
+  }
+
+  private async populateScrollList(): Promise<void> {
+    if (!this.scrollList) return;
+
+    try {
+      const provider = new ethers.BrowserProvider(window.ethereum as any);
+      const signer = await provider.getSigner();
+      const address = await signer.getAddress();
+      const levelIds = await getOwnerLevels(address);
+      const items = levelIds.map(id => ({
+        text: `Level ${id}`,
+        callback: () => {
+          alert(`Selected Level ${id}`);
+        }
+      }));
+
+      // Update the items of the existing scroll list and re-render
+      (this.scrollList as any).items = items;
+      (this.scrollList as any).createItems();
+    } catch (error) {
+      console.error('Error loading owned levels:', error);
+    }
   }
 
   private setupCoordDisplay(): void {

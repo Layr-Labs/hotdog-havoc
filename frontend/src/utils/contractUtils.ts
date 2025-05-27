@@ -207,4 +207,17 @@ export const getLevel = async (levelId: number) => {
     console.error('Error getting level:', error);
     throw error;
   }
+};
+
+// Get all level IDs owned by an address
+export const getOwnerLevels = async (ownerAddress: string): Promise<number[]> => {
+  try {
+    const contract = await getContract();
+    const levelIds = await contract.getOwnerLevels(ownerAddress);
+    console.log('Level IDs:', levelIds);
+    return levelIds.map((id: bigint) => Number(id));
+  } catch (error) {
+    console.error('Error getting owner levels:', error);
+    throw error;
+  }
 }; 

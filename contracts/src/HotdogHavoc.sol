@@ -39,10 +39,10 @@ contract HotdogHavoc {
     ////////////////////////////////////////////////////////////
     address public taskMailbox;                          // the address where all of our offchain tasks go
     
-    mapping(uint256 => Level) public levels;             // index of all levels
-    mapping(address => uint256[]) public ownerLevels;    // index of all levels owned by an address
-    uint256 public levelCount = 0;                       // total number of levels created
-    uint256 public blockCount = 0;                       // total number of blocks created
+    mapping(uint256 => Level) public levels;              // index of all levels
+    mapping(address => uint256[]) private ownerLevels;    // index of all levels owned by an address
+    uint256 public levelCount = 0;                        // total number of levels created
+    uint256 public blockCount = 0;                        // total number of blocks created
 
     ////////////////////////////////////////////////////////////
     // CONSTRUCTOR
@@ -93,5 +93,14 @@ contract HotdogHavoc {
         emit LevelCreated(levelId, msg.sender, name);
 
         return levelId;
+    }
+
+    /**
+     * @notice Returns an array of level IDs owned by the specified address
+     * @param owner The address to get level IDs for
+     * @return An array of level IDs owned by the address
+     */
+    function getOwnerLevels(address owner) public view returns (uint256[] memory) {
+        return ownerLevels[owner];
     }
 }

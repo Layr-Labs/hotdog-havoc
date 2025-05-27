@@ -517,7 +517,24 @@ export class EditorState extends BaseState {
           ease: 'Sine.easeInOut' 
         });
       }
-      // TODO: Implement load functionality
+      
+      if (this.window) {
+        if (this.window.isVisible()) {
+          this.window.hide();
+        } else {
+          // Create a large window that takes up most of the screen
+          const margin = 40; // pixels from edge
+          const width = this.scene.scale.width - (margin * 2);
+          const height = this.scene.scale.height - (margin * 2);
+          
+          this.window.show({
+            x: this.scene.scale.width / 2,
+            y: this.scene.scale.height / 2,
+            width: width,
+            height: height
+          });
+        }
+      }
     });
 
     this.addGameObject(this.loadButton);

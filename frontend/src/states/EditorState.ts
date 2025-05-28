@@ -728,6 +728,11 @@ export class EditorState extends BaseState {
   }
 
   private handleWheelScroll = (event: WheelEvent) => {
+    if (this.window && this.window.isVisible()) {
+      event.preventDefault();
+      return;
+    }
+    console.log("handleWheelScroll");
     event.preventDefault();
     const deltaX = event.deltaX;
     const deltaY = event.deltaY;

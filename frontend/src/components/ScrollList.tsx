@@ -56,6 +56,21 @@ export class ScrollList {
     this.itemsContainer = new Phaser.GameObjects.Container(scene, 0, 0);
     this.container.add(this.itemsContainer);
 
+    // Set up mouse wheel scrolling for the container
+    this.container.setInteractive(new Phaser.Geom.Rectangle(0, 0, this.width, this.height), Phaser.Geom.Rectangle.Contains);
+    this.container.on('wheel', (pointer: Phaser.Input.Pointer, deltaX: number, deltaY: number, deltaZ: number, event: WheelEvent) => {
+     console.log("scroll list scroll");
+        // Stop the event from propagating to the world
+      event.stopPropagation();
+      
+      const totalHeight = this.items.length * this.itemHeight;
+      if (totalHeight <= this.height) return;
+      
+      // Scroll by 1 item worth of height for each wheel step
+      const scrollAmount = this.itemHeight;
+      this.scroll(deltaY > 0 ? scrollAmount : -scrollAmount);
+    });
+
     // Create scroll buttons (right side, inside the box)
     this.scrollUpButton = new Phaser.GameObjects.Text(scene, this.width - 16, 16, 'v', {
       fontFamily: '"Press Start 2P", monospace',
@@ -158,15 +173,6 @@ export class ScrollList {
     // Draw the bar
     this.scrollBar.fillStyle(0xffffff, 1);
     this.scrollBar.fillRect(barArea.x, barY, barWidth, barHeight);
-
-    // Set up interactive area to match the bar exactly
-    this.scrollBar.removeInteractive();
-    this.scrollBar.setInteractive(new Phaser.Geom.Rectangle(barArea.x, barY, barWidth, barHeight), Phaser.Geom.Rectangle.Contains);
-    
-    // Set up cursor events using Phaser's input system
-    if (this.scrollBar.input) {
-      this.scrollBar.input.cursor = 'grab';
-    }
   }
 
   private createItems(): void {

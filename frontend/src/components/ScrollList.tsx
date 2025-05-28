@@ -122,22 +122,12 @@ export class ScrollList {
 
     // Create scroll bar
     this.scrollBar = new Phaser.GameObjects.Graphics(this.scene);
+    this.scrollBar.setScrollFactor(0);
     this.container.add(this.scrollBar);
 
     // Create items
     this.createItems();
 
-  }
-
-  private registerScrollBarEvents() {
-    this.scrollBar.off('pointerover');
-    this.scrollBar.off('pointerout');
-    this.scrollBar.on('pointerover', () => {
-      this.scene.input.setDefaultCursor('grab');
-    });
-    this.scrollBar.on('pointerout', () => {
-      this.scene.input.setDefaultCursor('default');
-    });
   }
 
   private updateItemVisibility(): void {
@@ -159,20 +149,24 @@ export class ScrollList {
       this.scrollBar.disableInteractive();
       return;
     }
+
     // Calculate scrollbar height and position
     const barHeight = this.getScrollBarHeight();
     const barY = this.getScrollBarY();
     const barWidth = barArea.width;
+
+    // Draw the bar
     this.scrollBar.fillStyle(0xffffff, 1);
     this.scrollBar.fillRect(barArea.x, barY, barWidth, barHeight);
-    // Set interactive area and cursor
+
+    // Set up interactive area to match the bar exactly
+    this.scrollBar.removeInteractive();
     this.scrollBar.setInteractive(new Phaser.Geom.Rectangle(barArea.x, barY, barWidth, barHeight), Phaser.Geom.Rectangle.Contains);
-    this.scrollBar.on('pointerover', () => {
-      this.scene.input.setDefaultCursor('grab');
-    });
-    this.scrollBar.on('pointerout', () => {
-      this.scene.input.setDefaultCursor('default');
-    });
+    
+    // Set up cursor events using Phaser's input system
+    if (this.scrollBar.input) {
+      this.scrollBar.input.cursor = 'grab';
+    }
   }
 
   private createItems(): void {
@@ -219,15 +213,7 @@ export class ScrollList {
   show(props: { x: number; y: number }) {
     this.container.setPosition(props.x, props.y);
     this.itemsContainer.setPosition(0, 0);
-    /*// Remove any previous mask
-    this.itemsContainer.clearMask(true);
-    if (this.maskGraphics) {
-      this.maskGraphics.destroy();
-    }
-    if (this.mask) {
-      this.mask.destroy();
-    }*/
-   
+    this.updateScrollBar(); // Make sure scroll bar is updated when shown
   }
 
   hide() {

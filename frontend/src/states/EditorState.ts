@@ -551,6 +551,7 @@ export class EditorState extends BaseState {
           const margin = 40; // pixels from edge
           const width = this.scene.scale.width - (margin * 2);
           const height = this.scene.scale.height - (margin * 2);
+          this.window.setDimensions(width, height);
           
           // Always create a new scroll list
           if (this.scrollList) {
@@ -566,7 +567,7 @@ export class EditorState extends BaseState {
             fontSize: 16,
             itemHeight: 24
           });
-          this.window.addChild(0, 0, this.scrollList);
+          this.window.addChild(-this.window.getWidth()/2 + 20, -this.window.getHeight()/2 + 20, this.scrollList);
 
           // Always create a new level preview
           if (this.levelPreview) {
@@ -613,37 +614,19 @@ export class EditorState extends BaseState {
             true       // disabled
           );
           this.window.addChild(
-            this.window.getWidth() - 80, // 80px from right
-            this.window.getHeight() - 40, // 40px from bottom
+            this.window.getWidth()/2 - 80, // 80px from right
+            this.window.getHeight()/2 - 40, // 40px from bottom
             this.restoreButton
           );
 
-    
-          // Show window first
+          this.populateScrollList()
+
+          // Show window last, after all children are added
           this.window.show({
             x: this.scene.scale.width / 2,
             y: this.scene.scale.height / 2,
             width: width,
             height: height
-          });
-
-          // Show restore button
-          if (this.restoreButton) {
-            this.restoreButton.show({
-              x: this.window.getWidth()/2 - 80,
-              y: this.window.getHeight()/2 - 40
-            });
-          }
-          
-          // Get owned levels and populate scroll list
-          this.populateScrollList().then(() => {
-            // Show scroll list after populating
-            if (this.scrollList) {
-              this.scrollList.show({
-                x: -this.window.getWidth()/2 + 20, // Top-left in window
-                y: -this.window.getHeight()/2 + 20
-              });
-            }
           });
         }
       }

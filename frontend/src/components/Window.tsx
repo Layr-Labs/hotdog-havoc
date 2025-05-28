@@ -206,4 +206,9 @@ export class Window {
   getHeight(): number {
     return this.windowHeight;
   }
+
+  setDimensions(width: number, height: number) {
+    this.windowWidth = width;
+    this.windowHeight = height;
+  }
 } 

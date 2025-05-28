@@ -43,6 +43,7 @@ export class EditorState extends BaseState {
   private worldMap: boolean[][] = [];
   private inputField: InputField | null = null;
   private scrollList: ScrollList | null = null;
+  private restoreButton: ButtonComponent | null = null;
 
   protected onCreate(): void {
     this.shouldIgnoreNextClick = true;
@@ -126,6 +127,11 @@ export class EditorState extends BaseState {
     // Remove mouse wheel scroll
     if (this.scene.game.canvas) {
       this.scene.game.canvas.removeEventListener('wheel', this.handleWheelScroll as EventListener);
+    }
+
+    if (this.restoreButton) {
+      this.restoreButton.destroy();
+      this.restoreButton = null;
     }
   }
 
@@ -528,6 +534,10 @@ export class EditorState extends BaseState {
             this.scrollList.destroy();
             this.scrollList = null;
           }
+          if (this.restoreButton) {
+            this.restoreButton.destroy();
+            this.restoreButton = null;
+          }
         } else {
           // Create a large window that takes up most of the screen
           const margin = 40; // pixels from edge
@@ -548,9 +558,29 @@ export class EditorState extends BaseState {
             fontSize: 16,
             itemHeight: 24
           });
-          // Add scroll list as a child of the window, upper left with margin
-          this.window.addChild( 0, 0, this.scrollList);
+          this.window.addChild(0, 0, this.scrollList);
 
+          // Always create a new restore button
+          if (this.restoreButton) {
+            this.restoreButton.destroy();
+            this.restoreButton = null;
+          }
+          this.restoreButton = new ButtonComponent(
+            this.scene,
+            'Load',
+            16,
+            0x888888, // gray
+            undefined, // no callback
+            16,        // padding
+            true       // disabled
+          );
+          this.window.addChild(
+            0, // 80px from right
+            0, // 40px from bottom
+            this.restoreButton
+          );
+
+    
           // Show window first
           this.window.show({
             x: this.scene.scale.width / 2,
@@ -559,6 +589,14 @@ export class EditorState extends BaseState {
             height: height
           });
 
+          // Show restore button
+          if (this.restoreButton) {
+            this.restoreButton.show({
+              x: this.window.getWidth()/2 - 80,
+              y: this.window.getHeight()/2 - 40
+            });
+          }
+          
           // Get owned levels and populate scroll list
           this.populateScrollList().then(() => {
             // Show scroll list after populating

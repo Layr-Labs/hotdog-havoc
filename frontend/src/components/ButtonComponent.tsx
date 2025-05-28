@@ -26,18 +26,28 @@ export class ButtonComponent {
   private color: number;
   private darkColor: number;
   private text: string;
+  private disabled: boolean;
 
   public get displayObject(): Phaser.GameObjects.Container {
     return this.container;
   }
 
-  constructor(scene: Phaser.Scene, text: string, fontSize: number, color: number, callback: ButtonCallback, padding = 16) {
+  constructor(
+    scene: Phaser.Scene,
+    text: string,
+    fontSize: number = 16,
+    color: number = 0x27ae60,
+    callback?: ButtonCallback,
+    padding = 16,
+    disabled: boolean = false
+  ) {
     this.scene = scene;
     this.text = text;
     this.fontSize = fontSize;
     this.color = color;
-    this.callback = callback;
+    this.callback = callback || (() => {});
     this.padding = padding;
+    this.disabled = disabled;
 
     // Calculate dark color for the side
     const base = Phaser.Display.Color.IntegerToColor(color);
@@ -61,7 +71,7 @@ export class ButtonComponent {
     this.textMain = new Phaser.GameObjects.Text(scene, 0, 0, text, {
       fontFamily: '"Press Start 2P", monospace',
       fontSize: `${fontSize}px`,
-      color: '#ffffff',
+      color: disabled ? '#bbb' : '#fff',
       fontStyle: 'bold',
       align: 'center',
     });
@@ -95,29 +105,39 @@ export class ButtonComponent {
     this.container.setAlpha(1);
     this.container.setVisible(false);
 
-    // Pointer events on the container
-    this.container.on('pointerover', () => {
-      this.textMain.setColor('#ffe066');
-      this.scene.input.manager.canvas.style.cursor = 'pointer';
-    });
-    this.container.on('pointerout', () => {
-      this.textMain.setColor('#ffffff');
-      this.topRect.y = 0;
-      this.textShadow.y = -1;
-      this.textMain.y = 0;
-      this.scene.input.manager.canvas.style.cursor = 'default';
-    });
-    this.container.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
-      this.topRect.y = 4;
-      this.textShadow.y = 3;
-      this.textMain.y = 4;
-    });
-    this.container.on('pointerup', () => {
-      this.topRect.y = 0;
-      this.textShadow.y = -1;
-      this.textMain.y = 0;
-      if (this.callback) this.callback();
-    });
+    if (!disabled) {
+      // Pointer events on the container
+      this.container.on('pointerover', () => {
+        this.textMain.setColor('#ffe066');
+        this.scene.input.manager.canvas.style.cursor = 'pointer';
+      });
+      this.container.on('pointerout', () => {
+        this.textMain.setColor('#ffffff');
+        this.topRect.y = 0;
+        this.textShadow.y = -1;
+        this.textMain.y = 0;
+        this.scene.input.manager.canvas.style.cursor = 'default';
+      });
+      this.container.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
+        this.topRect.y = 4;
+        this.textShadow.y = 3;
+        this.textMain.y = 4;
+      });
+      this.container.on('pointerup', () => {
+        this.topRect.y = 0;
+        this.textShadow.y = -1;
+        this.textMain.y = 0;
+        if (this.callback) this.callback();
+      });
+    } else {
+      // If disabled, set default cursor and ignore pointer events
+      this.container.setInteractive(new Phaser.Geom.Rectangle(0, 0, this.width, this.height), Phaser.Geom.Rectangle.Contains);
+      this.container.on('pointerover', () => {
+        this.scene.input.manager.canvas.style.cursor = 'default';
+      });
+      this.container.on('pointerdown', () => {});
+      this.container.on('pointerup', () => {});
+    }
   }
 
   show(props: { x: number; y: number }) {

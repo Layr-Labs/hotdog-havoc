@@ -547,27 +547,17 @@ export class EditorState extends BaseState {
             this.restoreButton = null;
           }
         } else {
-          // Create a large window that takes up most of the screen
-          const margin = 40; // pixels from edge
-          const width = this.scene.scale.width - (margin * 2);
-          const height = this.scene.scale.height - (margin * 2);
-          this.window.setDimensions(width, height);
-          
-          // Always create a new scroll list
-          if (this.scrollList) {
-            this.scrollList.destroy();
-            this.scrollList = null;
-          }
-          const scrollListWidth = width / 2;
-          const scrollListHeight = height - 40;
-          this.scrollList = new ScrollList(this.scene, {
-            width: scrollListWidth,
-            height: scrollListHeight,
-            items: [], // Will be populated below
-            fontSize: 16,
-            itemHeight: 24
-          });
-          this.window.addChild(-this.window.getWidth()/2 + 20, -this.window.getHeight()/2 + 20, this.scrollList);
+          // New vertical layout dimensions
+          const previewWidth = 600;
+          const previewHeight = 300;
+          const buttonHeight = 50;
+          const margin = 25;
+          const windowHeight = 700;
+          const scrollListHeight = windowHeight - previewHeight - buttonHeight - margin;
+          const windowWidth = previewWidth;
+
+          // Set window dimensions for pre-layout
+          this.window.setDimensions(windowWidth, windowHeight);
 
           // Always create a new level preview
           if (this.levelPreview) {
@@ -577,10 +567,24 @@ export class EditorState extends BaseState {
           this.previewBlocks = [];
           this.levelPreview = new LevelPreview(this.scene, {
             blocks: this.previewBlocks,
-            width: scrollListWidth,
-            height: scrollListHeight
+            width: previewWidth,
+            height: previewHeight
           });
-          this.window.addChild(scrollListWidth + 40, 0, this.levelPreview);
+          this.window.addChild(-windowWidth/2, -windowHeight/2 + margin, this.levelPreview);
+
+          // Always create a new scroll list
+          if (this.scrollList) {
+            this.scrollList.destroy();
+            this.scrollList = null;
+          }
+          this.scrollList = new ScrollList(this.scene, {
+            width: previewWidth,
+            height: scrollListHeight,
+            items: [], // Will be populated below
+            fontSize: 16,
+            itemHeight: 24
+          });
+          this.window.addChild(-windowWidth/2, -windowHeight/2 + margin + previewHeight, this.scrollList);
 
           // Always create a new restore button
           if (this.restoreButton) {
@@ -613,20 +617,15 @@ export class EditorState extends BaseState {
             16,        // padding
             true       // disabled
           );
-          this.window.addChild(
-            this.window.getWidth()/2 - 80, // 80px from right
-            this.window.getHeight()/2 - 40, // 40px from bottom
-            this.restoreButton
-          );
-
           this.populateScrollList()
+          this.window.addChild(0, windowHeight/2 - buttonHeight/2, this.restoreButton);
 
           // Show window last, after all children are added
           this.window.show({
             x: this.scene.scale.width / 2,
             y: this.scene.scale.height / 2,
-            width: width,
-            height: height
+            width: windowWidth,
+            height: windowHeight
           });
         }
       }

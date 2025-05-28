@@ -11,4 +11,5 @@ export enum GameStateType {
   MENU = 'menu',
   GAME = 'game',
   EDITOR = 'editor',
+  CREATE_GAME = 'create_game',
 } 

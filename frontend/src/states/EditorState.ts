@@ -732,7 +732,6 @@ export class EditorState extends BaseState {
       event.preventDefault();
       return;
     }
-    console.log("handleWheelScroll");
     event.preventDefault();
     const deltaX = event.deltaX;
     const deltaY = event.deltaY;

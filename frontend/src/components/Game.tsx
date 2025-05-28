@@ -5,6 +5,7 @@ import { GameStateType } from '../states/GameState';
 import { TitleState } from '../states/TitleState';
 import { MenuState } from '../states/MenuState';
 import { EditorState } from '../states/EditorState';
+import { CreateGameState } from '../states/CreateGameState';
 
 const Game = () => {
   const gameRef = useRef<Phaser.Game | null>(null);
@@ -81,6 +82,7 @@ function create(this: Phaser.Scene) {
   stateManager.registerState(GameStateType.TITLE, new TitleState(this));
   stateManager.registerState(GameStateType.MENU, new MenuState(this));
   stateManager.registerState(GameStateType.EDITOR, new EditorState(this));
+  stateManager.registerState(GameStateType.CREATE_GAME, new CreateGameState(this));
 
   // Set initial state
   stateManager.setState(GameStateType.TITLE, this);

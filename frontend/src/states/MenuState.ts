@@ -5,6 +5,10 @@ import { GameEventEmitter, GameEventType } from './GameEvents';
 import { createSkyGradient } from '../utils/gradientUtils';
 import WalletStore from '../utils/WalletStore';
 import { ButtonComponent } from '../components/ButtonComponent';
+import { Window } from '../components/Window';
+import { ScrollList } from '../components/ScrollList';
+import { ethers } from 'ethers';
+import * as contractUtils from '../utils/contractUtils';
 
 export class MenuState extends BaseState {
   private mainMenuImage: Phaser.GameObjects.Image | null = null;
@@ -12,6 +16,8 @@ export class MenuState extends BaseState {
   private walletText: Phaser.GameObjects.Text | null = null;
   private disconnectButton: ButtonComponent | null = null;
   private bgImage: Phaser.GameObjects.Image | null = null;
+  private createGameWindow: Window | null = null;
+  private createGameScrollList: ScrollList | null = null;
 
   constructor(scene: Phaser.Scene) {
     super(scene);
@@ -39,6 +45,14 @@ export class MenuState extends BaseState {
       this.disconnectButton.displayObject.destroy();
       this.disconnectButton = null;
     }
+    if (this.createGameWindow) {
+      this.createGameWindow.destroy();
+      this.createGameWindow = null;
+    }
+    if (this.createGameScrollList) {
+      this.createGameScrollList.destroy();
+      this.createGameScrollList = null;
+    }
     this.scene.scale.off('resize', this.handleResize, this);
     this.gameObjects = [];
   }
@@ -57,6 +71,14 @@ export class MenuState extends BaseState {
     if (this.disconnectButton) {
       this.disconnectButton.displayObject.destroy();
       this.disconnectButton = null;
+    }
+    if (this.createGameWindow) {
+      this.createGameWindow.destroy();
+      this.createGameWindow = null;
+    }
+    if (this.createGameScrollList) {
+      this.createGameScrollList.destroy();
+      this.createGameScrollList = null;
     }
 
     // Clear the gameObjects array to prevent duplicates
@@ -139,6 +161,7 @@ export class MenuState extends BaseState {
 
       // Hover effect
       opt.on('pointerover', () => {
+        if (this.createGameWindow && this.createGameWindow.isVisible()) return;
         this.scene.tweens.add({
           targets: opt,
           scale: 1.12,
@@ -149,6 +172,7 @@ export class MenuState extends BaseState {
       });
 
       opt.on('pointerout', () => {
+        if (this.createGameWindow && this.createGameWindow.isVisible()) return;
         this.scene.tweens.add({
           targets: opt,
           scale: 1,
@@ -159,6 +183,7 @@ export class MenuState extends BaseState {
       });
 
       opt.on('pointerdown', () => {
+        if (this.createGameWindow && this.createGameWindow.isVisible()) return;
         this.scene.tweens.add({
           targets: opt,
           scale: 0.95,
@@ -166,6 +191,13 @@ export class MenuState extends BaseState {
           yoyo: true,
           ease: 'Sine.easeInOut',
         });
+
+        if (label === 'Create Game') {
+          GameEventEmitter.emit({
+            type: GameEventType.STATE_CHANGE,
+            data: { state: GameStateType.CREATE_GAME }
+          });
+        }
 
         if (label === 'Level Editor') {
           GameEventEmitter.emit({

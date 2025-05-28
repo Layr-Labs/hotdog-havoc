@@ -103,4 +103,16 @@ contract HotdogHavoc {
     function getOwnerLevels(address owner) public view returns (uint256[] memory) {
         return ownerLevels[owner];
     }
+
+    /**
+     * @notice Returns the array of Block structs for a given level ID
+     * @dev This function allows external callers to retrieve the full block map for a level.
+     *      It is necessary because Solidity's public getter for structs containing dynamic arrays
+     *      does not return the entire array, only individual elements by index.
+     * @param levelId The ID of the level to retrieve blocks for
+     * @return An array of Block structs representing the level's map
+     */
+    function getLevelBlocks(uint256 levelId) public view returns (Block[] memory) {
+        return levels[levelId].map;
+    }
 }

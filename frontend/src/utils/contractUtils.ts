@@ -85,7 +85,6 @@ export const getContract = async () => {
   });
   
   const contract = new ethers.Contract(CONTRACT_ADDRESS, HotdogHavocABI.abi, signer);
-  console.log('Contract created with address:', contract.address);
   return contract;
 };
 
@@ -218,6 +217,22 @@ export const getOwnerLevels = async (ownerAddress: string): Promise<number[]> =>
     return levelIds.map((id: bigint) => Number(id));
   } catch (error) {
     console.error('Error getting owner levels:', error);
+    throw error;
+  }
+};
+
+// Get all blocks for a level by ID
+export const getLevelBlocks = async (levelId: number): Promise<{x: number, y: number}[]> => {
+  try {
+    const contract = await getContract();
+    const blocks = await contract.getLevelBlocks(levelId);
+    // Each block will have x and y as BigNumber, convert to number
+    return blocks.map((block: any) => ({
+      x: Number(block.x),
+      y: Number(block.y)
+    }));
+  } catch (error) {
+    console.error('Error getting level blocks:', error);
     throw error;
   }
 }; 

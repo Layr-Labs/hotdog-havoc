@@ -7,7 +7,7 @@ import { Window } from '../components/Window';
 import { InputField } from '../components/InputField';
 import { LabelComponent } from '../components/LabelComponent';
 import { ButtonComponent } from '../components/ButtonComponent';
-import { createLevel, getOwnerLevels, getContract, getLevel } from '../utils/contractUtils';
+import { createLevel, getOwnerLevels, getContract, getLevel, getLevelBlocks } from '../utils/contractUtils';
 import { ScrollList } from '../components/ScrollList';
 import { ethers } from 'ethers';
 
@@ -591,8 +591,26 @@ export class EditorState extends BaseState {
       }));
       const items = levelData.map(({ id, name }) => ({
         text: name ? `${name} (ID: ${id})` : `Level ${id}`,
-        callback: () => {
-          alert(`Selected Level ${id}`);
+        callback: async () => {
+          // Fetch level data
+          const blocks = await getLevelBlocks(id);
+          // Debug log
+          console.log('Loaded blocks:', blocks);
+          // Clear worldMap
+          this.initializeWorldMap();
+          // Set blocks from contract
+          for (const block of blocks) {
+            if (
+              typeof block.x === 'number' &&
+              typeof block.y === 'number' &&
+              block.x >= 0 && block.x < this.worldMap.length &&
+              block.y >= 0 && block.y < this.TILEMAP_HEIGHT
+            ) {
+              this.worldMap[block.x][block.y] = true;
+            }
+          }
+          this.redrawWorldTiles();
+          if (this.window) this.window.hide();
         }
       }));
 

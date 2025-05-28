@@ -55,7 +55,6 @@ export class ScrollList {
     // Add itemsContainer directly to the scene
     this.itemsContainer = new Phaser.GameObjects.Container(scene, 0, 0);
     this.container.add(this.itemsContainer);
-    //scene.add.existing(this.itemsContainer);
 
     // Create scroll buttons (right side, inside the box)
     this.scrollUpButton = new Phaser.GameObjects.Text(scene, this.width - 16, 16, 'v', {
@@ -125,10 +124,20 @@ export class ScrollList {
     this.scrollBar = new Phaser.GameObjects.Graphics(this.scene);
     this.container.add(this.scrollBar);
 
-
     // Create items
     this.createItems();
 
+  }
+
+  private registerScrollBarEvents() {
+    this.scrollBar.off('pointerover');
+    this.scrollBar.off('pointerout');
+    this.scrollBar.on('pointerover', () => {
+      this.scene.input.setDefaultCursor('grab');
+    });
+    this.scrollBar.on('pointerout', () => {
+      this.scene.input.setDefaultCursor('default');
+    });
   }
 
   private updateItemVisibility(): void {
@@ -156,7 +165,14 @@ export class ScrollList {
     const barWidth = barArea.width;
     this.scrollBar.fillStyle(0xffffff, 1);
     this.scrollBar.fillRect(barArea.x, barY, barWidth, barHeight);
-
+    // Set interactive area and cursor
+    this.scrollBar.setInteractive(new Phaser.Geom.Rectangle(barArea.x, barY, barWidth, barHeight), Phaser.Geom.Rectangle.Contains);
+    this.scrollBar.on('pointerover', () => {
+      this.scene.input.setDefaultCursor('grab');
+    });
+    this.scrollBar.on('pointerout', () => {
+      this.scene.input.setDefaultCursor('default');
+    });
   }
 
   private createItems(): void {

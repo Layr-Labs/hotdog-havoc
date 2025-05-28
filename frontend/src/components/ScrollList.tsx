@@ -24,6 +24,9 @@ export class ScrollList {
   private itemsContainer: Phaser.GameObjects.Container;
   private maskGraphics: Phaser.GameObjects.RenderTexture | undefined = undefined;
   private mask: Phaser.Display.Masks.BitmapMask | undefined = undefined;
+  private scrollBar: Phaser.GameObjects.Graphics;
+  private isDraggingScrollBar: boolean = false;
+  private dragOffsetY: number = 0;
 
   public get displayObject(): Phaser.GameObjects.Container {
     return this.container;
@@ -118,6 +121,11 @@ export class ScrollList {
     });
     this.container.add(this.scrollDownButton);
 
+    // Create scroll bar
+    this.scrollBar = new Phaser.GameObjects.Graphics(this.scene);
+    this.container.add(this.scrollBar);
+
+
     // Create items
     this.createItems();
 
@@ -132,6 +140,23 @@ export class ScrollList {
         text.setVisible(true);
       }
     });
+  }
+
+  private updateScrollBar(): void {
+    this.scrollBar.clear();
+    const totalHeight = this.items.length * this.itemHeight;
+    const barArea = this.getScrollBarArea();
+    if (totalHeight <= this.height) {
+      this.scrollBar.disableInteractive();
+      return;
+    }
+    // Calculate scrollbar height and position
+    const barHeight = this.getScrollBarHeight();
+    const barY = this.getScrollBarY();
+    const barWidth = barArea.width;
+    this.scrollBar.fillStyle(0xffffff, 1);
+    this.scrollBar.fillRect(barArea.x, barY, barWidth, barHeight);
+
   }
 
   private createItems(): void {
@@ -163,6 +188,7 @@ export class ScrollList {
       this.textItems.push(text);
     });
     this.updateItemVisibility();
+    this.updateScrollBar();
   }
 
   private scroll(deltaY: number): void {
@@ -171,6 +197,7 @@ export class ScrollList {
     this.scrollY = Phaser.Math.Clamp(this.scrollY + deltaY, -maxScroll, 0);
     this.itemsContainer.y = this.scrollY;
     this.updateItemVisibility();
+    this.updateScrollBar();
   }
 
   show(props: { x: number; y: number }) {
@@ -199,5 +226,30 @@ export class ScrollList {
       this.itemsContainer.destroy();
     }
     this.container.destroy();
+  }
+
+  private getScrollBarArea() {
+    // Calculate the area between the up and down buttons
+    const upButtonY = this.scrollUpButton.y + this.scrollUpButton.height / 2;
+    const downButtonY = this.scrollDownButton.y - this.scrollDownButton.height / 2;
+    const barX = this.width - 28; // Align with "V" button width
+    const barY = upButtonY;
+    const barHeight = downButtonY - upButtonY;
+    return { x: barX, y: barY, width: 25, height: barHeight };
+  }
+
+  private getScrollBarHeight(): number {
+    const totalHeight = this.items.length * this.itemHeight;
+    const barArea = this.getScrollBarArea();
+    if (totalHeight <= this.height) return barArea.height;
+    return Math.max((this.height / totalHeight) * barArea.height, 20);
+  }
+
+  private getScrollBarY(): number {
+    const totalHeight = this.items.length * this.itemHeight;
+    const barArea = this.getScrollBarArea();
+    if (totalHeight <= this.height) return barArea.y;
+    const scrollRatio = -this.scrollY / (totalHeight - this.height);
+    return barArea.y + scrollRatio * (barArea.height - this.getScrollBarHeight());
   }
 } 

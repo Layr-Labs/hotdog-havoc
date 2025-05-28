@@ -9,6 +9,7 @@ import { LabelComponent } from '../components/LabelComponent';
 import { ButtonComponent } from '../components/ButtonComponent';
 import { createLevel, getOwnerLevels, getContract, getLevel, getLevelBlocks } from '../utils/contractUtils';
 import { ScrollList } from '../components/ScrollList';
+import { LevelPreview } from '../components/LevelPreview';
 import { ethers } from 'ethers';
 
 interface Block {
@@ -44,6 +45,8 @@ export class EditorState extends BaseState {
   private inputField: InputField | null = null;
   private scrollList: ScrollList | null = null;
   private restoreButton: ButtonComponent | null = null;
+  private levelPreview: LevelPreview | null = null;
+  private previewBlocks: { x: number; y: number }[] = [];
 
   protected onCreate(): void {
     this.shouldIgnoreNextClick = true;
@@ -132,6 +135,11 @@ export class EditorState extends BaseState {
     if (this.restoreButton) {
       this.restoreButton.destroy();
       this.restoreButton = null;
+    }
+
+    if (this.levelPreview) {
+      this.levelPreview.destroy();
+      this.levelPreview = null;
     }
   }
 
@@ -560,6 +568,19 @@ export class EditorState extends BaseState {
           });
           this.window.addChild(0, 0, this.scrollList);
 
+          // Always create a new level preview
+          if (this.levelPreview) {
+            this.levelPreview.destroy();
+            this.levelPreview = null;
+          }
+          this.previewBlocks = [];
+          this.levelPreview = new LevelPreview(this.scene, {
+            blocks: this.previewBlocks,
+            width: scrollListWidth,
+            height: scrollListHeight
+          });
+          this.window.addChild(scrollListWidth + 40, 0, this.levelPreview);
+
           // Always create a new restore button
           if (this.restoreButton) {
             this.restoreButton.destroy();
@@ -570,13 +591,30 @@ export class EditorState extends BaseState {
             'Load',
             16,
             0x27ae60,  // green
-            undefined, // no callback
+            () => {
+              if (this.restoreButton && !this.restoreButton['disabled']) {
+                // Load the previewed level into the editor
+                this.initializeWorldMap();
+                for (const block of this.previewBlocks) {
+                  if (
+                    typeof block.x === 'number' &&
+                    typeof block.y === 'number' &&
+                    block.x >= 0 && block.x < this.worldMap.length &&
+                    block.y >= 0 && block.y < this.TILEMAP_HEIGHT
+                  ) {
+                    this.worldMap[block.x][block.y] = true;
+                  }
+                }
+                this.redrawWorldTiles();
+                if (this.window) this.window.hide();
+              }
+            },
             16,        // padding
             true       // disabled
           );
           this.window.addChild(
-            0, // 80px from right
-            0, // 40px from bottom
+            this.window.getWidth() - 80, // 80px from right
+            this.window.getHeight() - 40, // 40px from bottom
             this.restoreButton
           );
 
@@ -630,25 +668,16 @@ export class EditorState extends BaseState {
       const items = levelData.map(({ id, name }) => ({
         text: name ? `${name} (ID: ${id})` : `Level ${id}`,
         callback: async () => {
-          // Fetch level data
+          // Fetch level data for preview
           const blocks = await getLevelBlocks(id);
-          // Debug log
-          console.log('Loaded blocks:', blocks);
-          // Clear worldMap
-          this.initializeWorldMap();
-          // Set blocks from contract
-          for (const block of blocks) {
-            if (
-              typeof block.x === 'number' &&
-              typeof block.y === 'number' &&
-              block.x >= 0 && block.x < this.worldMap.length &&
-              block.y >= 0 && block.y < this.TILEMAP_HEIGHT
-            ) {
-              this.worldMap[block.x][block.y] = true;
-            }
+          this.previewBlocks = blocks;
+          if (this.levelPreview) {
+            this.levelPreview.updateBlocks(blocks);
           }
-          this.redrawWorldTiles();
-          if (this.window) this.window.hide();
+          // Enable the restore button
+          if (this.restoreButton) {
+            this.restoreButton.enable();
+          }
         }
       }));
 

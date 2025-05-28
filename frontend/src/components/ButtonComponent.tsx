@@ -27,6 +27,7 @@ export class ButtonComponent {
   private darkColor: number;
   private text: string;
   private disabled: boolean;
+  private originalColor: number;
 
   public get displayObject(): Phaser.GameObjects.Container {
     return this.container;
@@ -45,6 +46,7 @@ export class ButtonComponent {
     this.text = text;
     this.fontSize = fontSize;
     this.color = color;
+    this.originalColor = color;
     this.callback = callback || (() => {});
     this.padding = padding;
     this.disabled = disabled;
@@ -82,12 +84,12 @@ export class ButtonComponent {
 
     // Draw the side (bottom) rectangle
     this.sideRect = new Phaser.GameObjects.Graphics(scene);
-    this.sideRect.fillStyle(this.darkColor, 1);
+    this.sideRect.fillStyle(disabled ? 0x333333 : this.darkColor, 1);
     this.sideRect.fillRoundedRect(-this.width/2, -this.height/2 + 4, this.width, this.height, 12);
 
     // Draw the top rectangle (main color), offset up by 4px
     this.topRect = new Phaser.GameObjects.Graphics(scene);
-    this.topRect.fillStyle(this.color, 1);
+    this.topRect.fillStyle(disabled ? 0x888888 : this.originalColor, 1);
     this.topRect.fillRoundedRect(-this.width/2, -this.height/2, this.width, this.height, 12);
     this.topRect.lineStyle(2, 0xffffff, 0.12);
     this.topRect.strokeRoundedRect(-this.width/2, -this.height/2, this.width, this.height, 12);
@@ -105,39 +107,39 @@ export class ButtonComponent {
     this.container.setAlpha(1);
     this.container.setVisible(false);
 
-    if (!disabled) {
-      // Pointer events on the container
-      this.container.on('pointerover', () => {
-        this.textMain.setColor('#ffe066');
-        this.scene.input.manager.canvas.style.cursor = 'pointer';
-      });
-      this.container.on('pointerout', () => {
-        this.textMain.setColor('#ffffff');
-        this.topRect.y = 0;
-        this.textShadow.y = -1;
-        this.textMain.y = 0;
+    // Always register pointer events, but check this.disabled before acting
+    this.container.on('pointerover', () => {
+      if (this.disabled) {
         this.scene.input.manager.canvas.style.cursor = 'default';
-      });
-      this.container.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
-        this.topRect.y = 4;
-        this.textShadow.y = 3;
-        this.textMain.y = 4;
-      });
-      this.container.on('pointerup', () => {
-        this.topRect.y = 0;
-        this.textShadow.y = -1;
-        this.textMain.y = 0;
-        if (this.callback) this.callback();
-      });
-    } else {
-      // If disabled, set default cursor and ignore pointer events
-      this.container.setInteractive(new Phaser.Geom.Rectangle(0, 0, this.width, this.height), Phaser.Geom.Rectangle.Contains);
-      this.container.on('pointerover', () => {
+        return;
+      }
+      this.textMain.setColor('#ffe066');
+      this.scene.input.manager.canvas.style.cursor = 'pointer';
+    });
+    this.container.on('pointerout', () => {
+      if (this.disabled) {
         this.scene.input.manager.canvas.style.cursor = 'default';
-      });
-      this.container.on('pointerdown', () => {});
-      this.container.on('pointerup', () => {});
-    }
+        return;
+      }
+      this.textMain.setColor('#ffffff');
+      this.topRect.y = 0;
+      this.textShadow.y = -1;
+      this.textMain.y = 0;
+      this.scene.input.manager.canvas.style.cursor = 'default';
+    });
+    this.container.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
+      if (this.disabled) return;
+      this.topRect.y = 4;
+      this.textShadow.y = 3;
+      this.textMain.y = 4;
+    });
+    this.container.on('pointerup', () => {
+      if (this.disabled) return;
+      this.topRect.y = 0;
+      this.textShadow.y = -1;
+      this.textMain.y = 0;
+      if (this.callback) this.callback();
+    });
   }
 
   show(props: { x: number; y: number }) {
@@ -151,5 +153,31 @@ export class ButtonComponent {
   }
   destroy() {
     this.container.destroy();
+  }
+
+  enable() {
+    this.disabled = false;
+    this.topRect.clear();
+    this.topRect.fillStyle(this.originalColor, 1);
+    this.topRect.fillRoundedRect(-this.width/2, -this.height/2, this.width, this.height, 12);
+    this.topRect.lineStyle(2, 0xffffff, 0.12);
+    this.topRect.strokeRoundedRect(-this.width/2, -this.height/2, this.width, this.height, 12);
+    this.sideRect.clear();
+    this.sideRect.fillStyle(this.darkColor, 1);
+    this.sideRect.fillRoundedRect(-this.width/2, -this.height/2 + 4, this.width, this.height, 12);
+    this.textMain.setColor('#fff');
+  }
+
+  disable() {
+    this.disabled = true;
+    this.topRect.clear();
+    this.topRect.fillStyle(0x888888, 1);
+    this.topRect.fillRoundedRect(-this.width/2, -this.height/2, this.width, this.height, 12);
+    this.topRect.lineStyle(2, 0xffffff, 0.12);
+    this.topRect.strokeRoundedRect(-this.width/2, -this.height/2, this.width, this.height, 12);
+    this.sideRect.clear();
+    this.sideRect.fillStyle(0x333333, 1);
+    this.sideRect.fillRoundedRect(-this.width/2, -this.height/2 + 4, this.width, this.height, 12);
+    this.textMain.setColor('#bbb');
   }
 } 

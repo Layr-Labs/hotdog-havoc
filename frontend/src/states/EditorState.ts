@@ -569,7 +569,7 @@ export class EditorState extends BaseState {
             this.scene,
             'Load',
             16,
-            0x888888, // gray
+            0x27ae60,  // green
             undefined, // no callback
             16,        // padding
             true       // disabled

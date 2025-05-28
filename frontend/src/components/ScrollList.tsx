@@ -15,13 +15,15 @@ export class ScrollList {
   private textItems: Phaser.GameObjects.Text[];
   private scrollUpButton: Phaser.GameObjects.Text;
   private scrollDownButton: Phaser.GameObjects.Text;
-  private mask: Phaser.Display.Masks.GeometryMask;
   private scrollY: number = 0;
   private readonly itemHeight: number;
   private readonly fontSize: number;
   private readonly width: number;
   private readonly height: number;
   private readonly items: { text: string; callback: () => void }[];
+  private itemsContainer: Phaser.GameObjects.Container;
+  private maskGraphics: Phaser.GameObjects.RenderTexture | undefined = undefined;
+  private mask: Phaser.Display.Masks.BitmapMask | undefined = undefined;
 
   public get displayObject(): Phaser.GameObjects.Container {
     return this.container;
@@ -47,12 +49,23 @@ export class ScrollList {
     this.outline.strokeRect(0, 0, this.width, this.height);
     this.container.add(this.outline);
 
-    // Create mask for clipping (not added to container)
-    const maskGraphics = new Phaser.GameObjects.Graphics(scene);
-    maskGraphics.setScrollFactor(0);
-    maskGraphics.fillStyle(0xffffff);
-    maskGraphics.fillRect(0, 0, this.width, this.height);
-    this.mask = new Phaser.Display.Masks.GeometryMask(scene, maskGraphics);
+    // Create items container (for scrollable content) at fixed position (0,0)
+    this.itemsContainer = new Phaser.GameObjects.Container(scene, 0, 0);
+    this.itemsContainer.setScrollFactor(0);
+    this.container.add(this.itemsContainer);
+
+
+    // 1. Create the RenderTexture mask and add to container
+    this.maskGraphics = this.scene.add.renderTexture(0, 0, this.width, this.height);
+    this.maskGraphics.fill(0xffffff);
+    this.maskGraphics.setOrigin(0,0);
+    //this.maskGraphics.setVisible(true); // For debugging, set to false when done
+    //this.container.add(this.maskGraphics);
+    // 2. No need to align to world position, since it's in the same container
+    // 3. Create and apply the BitmapMask
+    this.mask = new Phaser.Display.Masks.BitmapMask(this.scene, this.maskGraphics);
+    //this.itemsContainer.setMask(this.mask);
+    this.container.setVisible(true);
 
     // Create scroll buttons (right side, inside the box)
     this.scrollUpButton = new Phaser.GameObjects.Text(scene, this.width - 16, 16, 'v', {
@@ -83,7 +96,7 @@ export class ScrollList {
       });
     });
     this.scrollUpButton.on('pointerdown', () => {
-      this.scroll(-this.itemHeight);
+      this.scroll(this.itemHeight);
     });
     this.container.add(this.scrollUpButton);
 
@@ -114,21 +127,20 @@ export class ScrollList {
       });
     });
     this.scrollDownButton.on('pointerdown', () => {
-      this.scroll(this.itemHeight);
+      this.scroll(-this.itemHeight);
     });
     this.container.add(this.scrollDownButton);
 
     // Create items
     this.createItems();
 
-    // Set mask on container (DISABLED FOR DEBUGGING)
-    // this.container.setMask(this.mask);
   }
 
   private createItems(): void {
     // Clear existing items
     this.textItems.forEach(item => item.destroy());
     this.textItems = [];
+    this.itemsContainer.removeAll(true); // Remove all children from itemsContainer
 
     // Create new items
     this.items.forEach((item, index) => {
@@ -152,8 +164,7 @@ export class ScrollList {
       text.on('pointerdown', () => {
         item.callback();
       });
-
-      this.container.add(text);
+      this.itemsContainer.add(text);
       this.textItems.push(text);
     });
   }
@@ -161,14 +172,22 @@ export class ScrollList {
   private scroll(deltaY: number): void {
     const totalHeight = this.items.length * this.itemHeight;
     const maxScroll = Math.max(0, totalHeight - this.height);
-    
     this.scrollY = Phaser.Math.Clamp(this.scrollY + deltaY, -maxScroll, 0);
-    this.createItems();
+    this.itemsContainer.y = this.scrollY;
   }
 
   show(props: { x: number; y: number }) {
     this.container.setPosition(props.x, props.y);
-    this.container.setVisible(true);
+    this.itemsContainer.setPosition(0, 0);
+    /*// Remove any previous mask
+    this.itemsContainer.clearMask(true);
+    if (this.maskGraphics) {
+      this.maskGraphics.destroy();
+    }
+    if (this.mask) {
+      this.mask.destroy();
+    }*/
+   
   }
 
   hide() {
@@ -176,6 +195,12 @@ export class ScrollList {
   }
 
   destroy() {
+    if (this.maskGraphics) {
+      this.maskGraphics.destroy();
+    }
+    if (this.itemsContainer) {
+      this.itemsContainer.destroy();
+    }
     this.container.destroy();
   }
 } 

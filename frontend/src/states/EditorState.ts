@@ -7,7 +7,7 @@ import { Window } from '../components/Window';
 import { InputField } from '../components/InputField';
 import { LabelComponent } from '../components/LabelComponent';
 import { ButtonComponent } from '../components/ButtonComponent';
-import { createLevel, getOwnerLevels, getContract } from '../utils/contractUtils';
+import { createLevel, getOwnerLevels, getContract, getLevel } from '../utils/contractUtils';
 import { ScrollList } from '../components/ScrollList';
 import { ethers } from 'ethers';
 
@@ -584,16 +584,23 @@ export class EditorState extends BaseState {
       const signer = await provider.getSigner();
       const address = await signer.getAddress();
       const levelIds = await getOwnerLevels(address);
-      const items = levelIds.map(id => ({
-        text: `Level ${id}`,
+      // Fetch all level names in parallel
+      const levelData = await Promise.all(levelIds.map(async id => {
+        const level = await getLevel(id);
+        return { id, name: level.name };
+      }));
+      const items = levelData.map(({ id, name }) => ({
+        text: name ? `${name} (ID: ${id})` : `Level ${id}`,
         callback: () => {
           alert(`Selected Level ${id}`);
         }
       }));
 
       // Update the items of the existing scroll list and re-render
-      (this.scrollList as any).items = items;
-      (this.scrollList as any).createItems();
+      if (this.scrollList) {
+        (this.scrollList as any).items = items;
+        (this.scrollList as any).createItems();
+      }
     } catch (error) {
       console.error('Error loading owned levels:', error);
     }

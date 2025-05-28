@@ -49,23 +49,10 @@ export class ScrollList {
     this.outline.strokeRect(0, 0, this.width, this.height);
     this.container.add(this.outline);
 
-    // Create items container (for scrollable content) at fixed position (0,0)
+    // Add itemsContainer directly to the scene
     this.itemsContainer = new Phaser.GameObjects.Container(scene, 0, 0);
-    this.itemsContainer.setScrollFactor(0);
     this.container.add(this.itemsContainer);
-
-
-    // 1. Create the RenderTexture mask and add to container
-    this.maskGraphics = this.scene.add.renderTexture(0, 0, this.width, this.height);
-    this.maskGraphics.fill(0xffffff);
-    this.maskGraphics.setOrigin(0,0);
-    //this.maskGraphics.setVisible(true); // For debugging, set to false when done
-    //this.container.add(this.maskGraphics);
-    // 2. No need to align to world position, since it's in the same container
-    // 3. Create and apply the BitmapMask
-    this.mask = new Phaser.Display.Masks.BitmapMask(this.scene, this.maskGraphics);
-    //this.itemsContainer.setMask(this.mask);
-    this.container.setVisible(true);
+    //scene.add.existing(this.itemsContainer);
 
     // Create scroll buttons (right side, inside the box)
     this.scrollUpButton = new Phaser.GameObjects.Text(scene, this.width - 16, 16, 'v', {
@@ -136,6 +123,17 @@ export class ScrollList {
 
   }
 
+  private updateItemVisibility(): void {
+    this.textItems.forEach((text, index) => {
+      const itemY = (index * this.itemHeight) + this.scrollY + this.itemHeight/2;
+      if (itemY < 0 || itemY > this.height) {
+        text.setVisible(false);
+      } else {
+        text.setVisible(true);
+      }
+    });
+  }
+
   private createItems(): void {
     // Clear existing items
     this.textItems.forEach(item => item.destroy());
@@ -152,21 +150,19 @@ export class ScrollList {
       text.setOrigin(0, 0.5);
       text.setScrollFactor(0);
       text.setInteractive({ useHandCursor: true });
-      
       text.on('pointerover', () => {
         text.setColor('#ffe066');
       });
-      
       text.on('pointerout', () => {
         text.setColor('#ffffff');
       });
-      
       text.on('pointerdown', () => {
         item.callback();
       });
       this.itemsContainer.add(text);
       this.textItems.push(text);
     });
+    this.updateItemVisibility();
   }
 
   private scroll(deltaY: number): void {
@@ -174,6 +170,7 @@ export class ScrollList {
     const maxScroll = Math.max(0, totalHeight - this.height);
     this.scrollY = Phaser.Math.Clamp(this.scrollY + deltaY, -maxScroll, 0);
     this.itemsContainer.y = this.scrollY;
+    this.updateItemVisibility();
   }
 
   show(props: { x: number; y: number }) {

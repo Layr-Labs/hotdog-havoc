@@ -553,7 +553,7 @@ export class EditorState extends BaseState {
           const buttonHeight = 50;
           const margin = 25;
           const windowHeight = 700;
-          const scrollListHeight = windowHeight - previewHeight - buttonHeight - margin;
+          const scrollListHeight = windowHeight - previewHeight - buttonHeight - margin - 16;
           const windowWidth = previewWidth;
 
           // Set window dimensions for pre-layout

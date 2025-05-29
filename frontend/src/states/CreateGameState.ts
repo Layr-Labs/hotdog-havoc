@@ -2,12 +2,15 @@ import Phaser from 'phaser';
 import { BaseState } from './BaseState';
 import { createSkyGradient } from '../utils/gradientUtils';
 import { ScrollList } from '../components/ScrollList';
+import { LevelPreview } from '../components/LevelPreview';
 import { ethers } from 'ethers';
 import * as contractUtils from '../utils/contractUtils';
 
 export class CreateGameState extends BaseState {
   private bgImage: Phaser.GameObjects.Image | null = null;
   private scrollList: ScrollList | null = null;
+  private levelPreview: LevelPreview | null = null;
+  private selectedLevelId: number | null = null;
 
   protected async onCreate(): Promise<void> {
     // Sky gradient background
@@ -16,20 +19,43 @@ export class CreateGameState extends BaseState {
       this.addGameObject(this.bgImage);
     }
 
-    // Create ScrollList (centered)
+    // Layout constants
+    const scrollListWidth = 500;
+    const scrollListHeight = 336;
+    const previewWidth = 400;
+    const previewHeight = 220;
+    const gap = 40;
+    const totalWidth = scrollListWidth + gap + previewWidth;
+    const centerX = this.scene.scale.width / 2;
+    const centerY = this.scene.scale.height / 2;
+
+    // Create ScrollList (left)
     this.scrollList = new ScrollList(this.scene, {
-      width: 500,
-      height: 336,
+      width: scrollListWidth,
+      height: scrollListHeight,
       items: [],
       fontSize: 16,
       itemHeight: 28
     });
     this.scrollList.displayObject.setPosition(
-      this.scene.scale.width / 2 - 250,
-      this.scene.scale.height / 2 - 168
+      centerX - totalWidth / 2,
+      centerY - scrollListHeight / 2
     );
     this.scene.add.existing(this.scrollList.displayObject);
     this.addGameObject(this.scrollList.displayObject);
+
+    // Create LevelPreview (right)
+    this.levelPreview = new LevelPreview(this.scene, {
+      blocks: [],
+      width: previewWidth,
+      height: previewHeight
+    });
+    this.levelPreview.displayObject.setPosition(
+      centerX - totalWidth / 2 + scrollListWidth + gap,
+      centerY - previewHeight / 2
+    );
+    this.scene.add.existing(this.levelPreview.displayObject);
+    this.addGameObject(this.levelPreview.displayObject);
 
     // Load all levels
     try {
@@ -48,7 +74,14 @@ export class CreateGameState extends BaseState {
       );
       const items = levelData.map(({ id, name }: any) => ({
         text: name ? `${name} (ID: ${id})` : `Level ${id}`,
-        callback: () => {}
+        callback: async () => {
+          // Fetch blocks and update preview
+          const blocks = await contractUtils.getLevelBlocks(id);
+          this.selectedLevelId = id;
+          if (this.levelPreview) {
+            this.levelPreview.updateBlocks(blocks);
+          }
+        }
       }));
       (this.scrollList as any).items = items;
       (this.scrollList as any).createItems();
@@ -61,5 +94,6 @@ export class CreateGameState extends BaseState {
   protected onDestroy(): void {
     if (this.bgImage) this.bgImage.destroy();
     if (this.scrollList) this.scrollList.displayObject.destroy();
+    if (this.levelPreview) this.levelPreview.displayObject.destroy();
   }
 } 

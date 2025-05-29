@@ -59,7 +59,6 @@ export class ScrollList {
     // Set up mouse wheel scrolling for the container
     this.container.setInteractive(new Phaser.Geom.Rectangle(0, 0, this.width, this.height), Phaser.Geom.Rectangle.Contains);
     this.container.on('wheel', (pointer: Phaser.Input.Pointer, deltaX: number, deltaY: number, deltaZ: number, event: WheelEvent) => {
-     console.log("scroll list scroll");
         // Stop the event from propagating to the world
       event.stopPropagation();
       
@@ -68,7 +67,7 @@ export class ScrollList {
       
       // Scroll by 1 item worth of height for each wheel step
       const scrollAmount = this.itemHeight;
-      this.scroll(deltaY > 0 ? scrollAmount : -scrollAmount);
+      this.scroll(deltaY > 0 ? -scrollAmount : scrollAmount);
     });
 
     // Create scroll buttons (right side, inside the box)

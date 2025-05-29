@@ -1,5 +1,5 @@
 # Devnet context to be used for local deployments against Anvil chain
-version: 0.0.3
+version: 0.0.5
 context:
   # Name of the context
   name: "devnet"
@@ -11,12 +11,14 @@ context:
       fork:
         block: 22475020
         url: "https://patient-few-replica.quiknode.pro/33410ab616c647f17cb8a264118304a5d118b4ed/"
+        block_time: 3
     l2:
       chain_id: 31337
       rpc_url: "http://localhost:8545"
       fork:
         block: 22475020
         url: "https://patient-few-replica.quiknode.pro/33410ab616c647f17cb8a264118304a5d118b4ed/"
+        block_time: 3
   # All key material (BLS and ECDSA) within this file should be used for local testing ONLY
   # ECDSA keys used are from Anvil's private key set
   # BLS keystores are deterministically pre-generated and embedded. These are NOT derived from a secure seed
@@ -88,3 +90,7 @@ context:
     - address: 0x15d34AAf54267DB7D7c367839AAf71A00a2C6A65
       operator_set_id: 1
       payload: 0000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000012025b959a916afa394d4b928538daeda26b8bcc25d10583d4d3745b376b68c2a2d00d9997cb9ee77c1a71c66215d5443fdf473d6bd2da55fc4b2648e472168f5261d029f3c896b4c62359919ab0bce753d489fcbed4f980963a0906e2e181e545c2478dc7b1b068111c6db2db11798a751e3f357be666c68658a25a563fd9a82040ade1cdf142c7dbf27aa9173a6dc34515607a444bd8c178180689a0f80cf38352a547c0d1a5763c18b4af4107c51a1633fb70fc975fe7a8e98b5e224d9dba90c0832c8878dac72b88643c1c9313d0d20eac8b8bbb1347aa9a3d83ee61b7b2a4c237dcae2f9ba22b3a4b6b09e426fa805eb5338c1f4af3ac199ae1259a3a6ae1d000000000000000000000000000000000000000000000000000000000000000d6578656375746f723a3930393000000000000000000000000000000000000000
+  # Core EigenLayer contract addresses
+  eigenlayer:
+    allocation_manager: "0x948a420b8CC1d6BFd0B6087C2E7c344a2CD0bc39"
+    delegation_manager: "0x39053D51B77DC0d36036Fc1fCc8Cb819df8Ef37A"

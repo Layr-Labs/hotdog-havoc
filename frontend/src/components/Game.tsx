@@ -72,6 +72,7 @@ function preload(this: Phaser.Scene) {
   this.load.image('save', 'src/images/save.png');
   this.load.image('load', 'src/images/load.png');
   this.load.image('back', 'src/images/back.png');
+  this.load.image('createGame', 'src/images/createGame.png');
 }
 
 function create(this: Phaser.Scene) {

@@ -9,6 +9,7 @@ import { ButtonComponent } from '../components/ButtonComponent';
 import { GameEventEmitter, GameEventType } from './GameEvents';
 import { GameStateType } from './GameState';
 import { LabelComponent } from '../components/LabelComponent';
+import { InputField } from '../components/InputField';
 
 export class CreateGameState extends BaseState {
   private bgImage: Phaser.GameObjects.Image | null = null;
@@ -19,6 +20,10 @@ export class CreateGameState extends BaseState {
   private backButton: Phaser.GameObjects.Image | null = null;
   private chooseLevelText: Phaser.GameObjects.Text | null = null;
   private levelPreviewText: Phaser.GameObjects.Text | null = null;
+  private wagerInput: any = null;
+  private wagerLabel: Phaser.GameObjects.Text | null = null;
+  private createButton: ButtonComponent | null = null;
+  private ethIcon: Phaser.GameObjects.Image | null = null;
 
   protected async onCreate(): Promise<void> {
     // Sky gradient background
@@ -35,7 +40,7 @@ export class CreateGameState extends BaseState {
 
     // Layout constants
     const scrollListWidth = 500;
-    const scrollListHeight = 336;
+    const scrollListHeight = 220;
     const previewWidth = 400;
     const previewHeight = 220;
     const gap = 40;
@@ -103,6 +108,102 @@ export class CreateGameState extends BaseState {
     this.scene.add.existing(this.levelPreviewText);
     this.addGameObject(this.levelPreviewText);
 
+    // Calculate left and bottom of scroll list
+    const scrollListX = centerX - totalWidth / 2;
+    const scrollListY = centerY - scrollListHeight / 2;
+    const wagerRowY = scrollListY + scrollListHeight + 32;
+    const wagerLabelX = scrollListX;
+    const inputWidth = 120;
+    const inputFontSize = 16;
+    const inputX = wagerLabelX + 275;
+    // Calculate right edge of LevelPreview
+    const levelPreviewRight = scrollListX + scrollListWidth + gap + previewWidth;
+
+    // Wager label
+    this.wagerLabel = this.scene.add.text(
+      wagerLabelX,
+      wagerRowY,
+      'Wager Amount:',
+      {
+        fontFamily: '"Press Start 2P", monospace',
+        fontSize: '16px',
+        color: '#fff',
+        align: 'left',
+      }
+    );
+    this.wagerLabel.setOrigin(0, 0.5);
+    this.scene.add.existing(this.wagerLabel);
+    this.addGameObject(this.wagerLabel);
+
+    // Wager input
+    this.wagerInput = new InputField(this.scene);
+    this.wagerInput.show({
+      width: inputWidth,
+      fontSize: inputFontSize,
+      scrollFactor: 0
+    });
+    this.wagerInput.displayObject.setPosition(inputX, wagerRowY);
+    this.addGameObject(this.wagerInput.displayObject);
+
+    // After wager input
+    const ethIconX = inputX + inputWidth/2 + 12;
+    this.ethIcon = this.scene.add.image(ethIconX, wagerRowY - 5, 'ethereum');
+    this.ethIcon.setOrigin(0, 0.5);
+    this.ethIcon.setScale(0.60);
+    this.scene.add.existing(this.ethIcon);
+    this.addGameObject(this.ethIcon);
+    // Floating animation
+    this.scene.tweens.add({
+      targets: this.ethIcon,
+      y: `+=10`,
+      duration: 1200,
+      ease: 'Sine.easeInOut',
+      yoyo: true,
+      repeat: -1
+    });
+
+    // Create button first (do not show yet)
+    this.createButton = new ButtonComponent(
+      this.scene,
+      'Create',
+      16,
+      0x27ae60,
+      () => {
+        if (!this.createButton || this.createButton.isDisabled()) return;
+        console.log('Create game with level', this.selectedLevelId, 'wager', this.wagerInput.getValue());
+      },
+      16,
+      true
+    );
+    // Now that we have the width, right-align the button
+    const buttonX = levelPreviewRight - this.createButton.displayObject.width / 2;
+    this.createButton.show({ x: buttonX, y: wagerRowY });
+    this.scene.add.existing(this.createButton.displayObject);
+    this.addGameObject(this.createButton.displayObject);
+
+    // Enable/disable button logic
+    const updateCreateButtonState = () => {
+      if (!this.createButton || !this.wagerInput) return;
+      const wager = this.wagerInput.getValue();
+      if (this.selectedLevelId !== null && wager && wager.trim() !== '') {
+        this.createButton.enable();
+      } else {
+        this.createButton.disable();
+      }
+    };
+    // Listen for input changes
+    this.wagerInput.setValue(''); // ensure empty
+    this.scene.input.keyboard?.on('keydown', updateCreateButtonState);
+    // Listen for level selection
+    const origCallback = (this.scrollList as any).items?.map?.(item => item.callback);
+    (this.scrollList as any).items?.forEach?.((item: any, idx: number) => {
+      const userCallback = item.callback;
+      item.callback = async () => {
+        await userCallback();
+        updateCreateButtonState();
+      };
+    });
+
     // Load all levels
     try {
       if (!window.ethereum) {
@@ -146,6 +247,10 @@ export class CreateGameState extends BaseState {
     if (this.backButton) this.backButton.destroy();
     if (this.chooseLevelText) this.chooseLevelText.destroy();
     if (this.levelPreviewText) this.levelPreviewText.destroy();
+    if (this.wagerLabel) this.wagerLabel.destroy();
+    if (this.wagerInput) this.wagerInput.destroy();
+    if (this.createButton) this.createButton.destroy();
+    if (this.ethIcon) this.ethIcon.destroy();
   }
 
   private showCreateGameTitle(): void {

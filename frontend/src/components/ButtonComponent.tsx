@@ -180,4 +180,8 @@ export class ButtonComponent {
     this.sideRect.fillRoundedRect(-this.width/2, -this.height/2 + 4, this.width, this.height, 12);
     this.textMain.setColor('#bbb');
   }
+
+  public isDisabled() {
+    return this.disabled;
+  }
 } 

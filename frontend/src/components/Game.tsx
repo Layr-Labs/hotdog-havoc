@@ -73,6 +73,7 @@ function preload(this: Phaser.Scene) {
   this.load.image('load', 'src/images/load.png');
   this.load.image('back', 'src/images/back.png');
   this.load.image('createGame', 'src/images/createGame.png');
+  this.load.image('ethereum', 'src/images/ethereum.png');
 }
 
 function create(this: Phaser.Scene) {

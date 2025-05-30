@@ -25,6 +25,7 @@ export class InputField {
   private width: number = 0;
   private fontSize: number = 12;
   private scrollStart: number = 0;
+  private inputChangeCallback: ((nextValue: string) => boolean) | null = null;
 
   constructor(scene: Phaser.Scene) {
     this.scene = scene;
@@ -148,7 +149,11 @@ export class InputField {
     } else if (event.key === 'Enter') {
       this.setFocused(false);
     } else if (event.key.length === 1) {
-      this.value = this.value.slice(0, this.cursorIndex) + event.key + this.value.slice(this.cursorIndex);
+      const nextValue = this.value.slice(0, this.cursorIndex) + event.key + this.value.slice(this.cursorIndex);
+      if (this.inputChangeCallback && this.inputChangeCallback(nextValue) === false) {
+        return;
+      }
+      this.value = nextValue;
       this.cursorIndex++;
       this.updateText();
     }
@@ -293,5 +298,9 @@ export class InputField {
 
   get displayObject() {
     return this.parent;
+  }
+
+  public onInputChange(cb: (nextValue: string) => boolean) {
+    this.inputChangeCallback = cb;
   }
 } 

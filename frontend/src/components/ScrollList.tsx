@@ -27,6 +27,7 @@ export class ScrollList {
   private scrollBar: Phaser.GameObjects.Graphics;
   private isDraggingScrollBar: boolean = false;
   private dragOffsetY: number = 0;
+  private selectedIndex: number | null = null;
 
   public get displayObject(): Phaser.GameObjects.Container {
     return this.container;
@@ -182,21 +183,25 @@ export class ScrollList {
 
     // Create new items
     this.items.forEach((item, index) => {
+      const isSelected = this.selectedIndex === index;
+      const color = isSelected ? '#ffe066' : '#ffffff';
       const text = new Phaser.GameObjects.Text(this.scene, 8, (index * this.itemHeight) + this.scrollY + this.itemHeight/2, item.text, {
         fontFamily: '"Press Start 2P", monospace',
         fontSize: `${this.fontSize}px`,
-        color: '#ffffff'
+        color,
       });
       text.setOrigin(0, 0.5);
       text.setScrollFactor(0);
       text.setInteractive({ useHandCursor: true });
       text.on('pointerover', () => {
-        text.setColor('#ffe066');
+        if (this.selectedIndex !== index) text.setColor('#ffe066');
       });
       text.on('pointerout', () => {
-        text.setColor('#ffffff');
+        text.setColor(this.selectedIndex === index ? '#ffe066' : '#ffffff');
       });
       text.on('pointerdown', () => {
+        this.selectedIndex = index;
+        this.updateSelectedColors();
         item.callback();
       });
       this.itemsContainer.add(text);
@@ -258,5 +263,16 @@ export class ScrollList {
     if (totalHeight <= this.height) return barArea.y;
     const scrollRatio = -this.scrollY / (totalHeight - this.height);
     return barArea.y + scrollRatio * (barArea.height - this.getScrollBarHeight());
+  }
+
+  private updateSelectedColors() {
+    this.textItems.forEach((text, idx) => {
+      text.setColor(this.selectedIndex === idx ? '#ffe066' : '#ffffff');
+    });
+  }
+
+  public setSelectedIndex(idx: number) {
+    this.selectedIndex = idx;
+    this.updateSelectedColors();
   }
 } 

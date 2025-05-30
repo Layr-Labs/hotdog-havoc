@@ -26,6 +26,8 @@ export class InputField {
   private fontSize: number = 12;
   private scrollStart: number = 0;
   private inputChangeCallback: ((nextValue: string) => boolean) | null = null;
+  private afterUpdateCallback: (() => void) | null = null;
+  private justPasted: boolean = false;
 
   constructor(scene: Phaser.Scene) {
     this.scene = scene;
@@ -56,6 +58,7 @@ export class InputField {
     }
     this.cursorIndex = this.value.length;
     this.scrollOffset = 0;
+    window.addEventListener('paste', this.handlePaste);
   }
 
   show(props: InputFieldProps) {
@@ -117,6 +120,9 @@ export class InputField {
   }
 
   private handleKeyDown = (event: KeyboardEvent) => {
+    if (event.key.toLowerCase() === 'v' && (event.ctrlKey || event.metaKey)) {
+      return;
+    }
     if (!this.isFocused) return;
 
     if (event.key === 'Backspace') {
@@ -124,11 +130,13 @@ export class InputField {
         this.value = this.value.slice(0, this.cursorIndex - 1) + this.value.slice(this.cursorIndex);
         this.cursorIndex--;
         this.updateText();
+        if (this.afterUpdateCallback) this.afterUpdateCallback();
       }
     } else if (event.key === 'Delete') {
       if (this.cursorIndex < this.value.length) {
         this.value = this.value.slice(0, this.cursorIndex) + this.value.slice(this.cursorIndex + 1);
         this.updateText();
+        if (this.afterUpdateCallback) this.afterUpdateCallback();
       }
     } else if (event.key === 'ArrowLeft') {
       if (this.cursorIndex > 0) {
@@ -156,6 +164,7 @@ export class InputField {
       this.value = nextValue;
       this.cursorIndex++;
       this.updateText();
+      if (this.afterUpdateCallback) this.afterUpdateCallback();
     }
   }
 
@@ -294,6 +303,7 @@ export class InputField {
       this.scene.input.keyboard.off('keydown', this.handleKeyDown, this);
     }
     this.scene.input.off('pointerdown', this.outsidePointerDownHandler, this);
+    window.removeEventListener('paste', this.handlePaste);
   }
 
   get displayObject() {
@@ -302,5 +312,33 @@ export class InputField {
 
   public onInputChange(cb: (nextValue: string) => boolean) {
     this.inputChangeCallback = cb;
+  }
+
+  private handlePaste = (event: ClipboardEvent) => {
+    console.log("handlePaste", event);
+    if (!this.isFocused) return;
+    const paste = event.clipboardData?.getData('text');
+    if (!paste) return;
+
+    // Create the new value that would result from the paste
+    const newValue = this.value.slice(0, this.cursorIndex) + paste + this.value.slice(this.cursorIndex);
+    
+    // Validate the new value if we have a callback
+    if (this.inputChangeCallback && this.inputChangeCallback(newValue) === false) {
+      event.preventDefault();
+      return;
+    }
+
+    // If validation passes, update the value
+    this.value = newValue;
+    this.cursorIndex += paste.length;
+    this.updateText();
+    this.justPasted = true;
+    if (this.afterUpdateCallback) this.afterUpdateCallback();
+    event.preventDefault();
+  };
+
+  public onAfterUpdate(cb: () => void) {
+    this.afterUpdateCallback = cb;
   }
 } 

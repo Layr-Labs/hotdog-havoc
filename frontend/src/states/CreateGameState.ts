@@ -122,17 +122,17 @@ export class CreateGameState extends BaseState {
     this.addGameObject(this.opponentLabel);
 
     this.opponentInput = new InputField(this.scene);
-    this.opponentInput.show({ x: 0, y: 0, width: 320, fontSize: 16, scrollFactor: 0 });
+    this.opponentInput.show({ x: 0, y: 0, width: 485, fontSize: 10, scrollFactor: 0 });
     if (this.opponentInput.displayObject) this.opponentInput.displayObject.setVisible(false);
-    if (this.opponentInput.displayObject) this.addGameObject(this.opponentInput.displayObject);
     if (this.opponentInput && this.opponentInput.displayObject) {
-      this.opponentInput.displayObject.setOrigin?.(0, 0);
+      // No setOrigin for Container; Container origin is always (0,0) and cannot be changed.
     }
 
     if (this.privateGameCheckbox) {
       this.privateGameCheckbox.onChange((checked) => {
         if (this.opponentLabel) this.opponentLabel.setVisible(checked);
         if (this.opponentInput && this.opponentInput.displayObject) this.opponentInput.displayObject.setVisible(checked);
+        updateCreateButtonState();
       });
     }
 
@@ -141,12 +141,11 @@ export class CreateGameState extends BaseState {
     this.addGameObject(this.wagerInput.displayObject);
 
     this.wagerInput.onInputChange((nextValue: string) => {
-      // Allow only numbers greater than zero (allow decimals)
+      updateCreateButtonState();
+      // existing validation logic for wager input
       if (!nextValue) return true; // allow empty for deletion
       const num = Number(nextValue);
-      // Only allow if valid number, not negative, not multiple dots, not leading zero unless '0.'
       if (isNaN(num) || num <= 0) return false;
-      // Only allow digits and at most one decimal point
       if (!/^\d*\.?\d*$/.test(nextValue)) return false;
       return true;
     });
@@ -192,12 +191,17 @@ export class CreateGameState extends BaseState {
       if (!this.createButton || !this.wagerInput) return;
       const wager = this.wagerInput.getValue();
       const wagerNum = Number(wager);
+      const privateChecked = this.privateGameCheckbox?.isChecked();
+      const opponent = this.opponentInput?.getValue() || '';
+      const opponentValid = !privateChecked || (opponent && ethers.isAddress(opponent.trim()));
+
       if (
         this.selectedLevelId !== null &&
         wager &&
         wager.trim() !== '' &&
         !isNaN(wagerNum) &&
-        wagerNum > 0
+        wagerNum > 0 &&
+        opponentValid
       ) {
         this.createButton.enable();
       } else {
@@ -270,6 +274,13 @@ export class CreateGameState extends BaseState {
     } catch (error) {
       console.error('Error loading all levels:', error);
     }
+
+    if (this.opponentInput) {
+      this.opponentInput.onInputChange(() => true); // allow any input
+      this.opponentInput.onAfterUpdate(() => {
+        updateCreateButtonState();
+      });
+    }
   }
 
   private layoutUI(): void {
@@ -323,15 +334,17 @@ export class CreateGameState extends BaseState {
     if (this.wagerLabel) {
       this.wagerLabel.setPosition(wagerLabelX, wagerRowY);
     }
-    if (this.wagerInput) {
+    if (this.wagerInput && this.wagerInput.displayObject) {
       this.wagerInput.displayObject.setPosition(inputX, wagerRowY);
     }
     const ethGap = 8;
-    const iconX = this.wagerInput.displayObject.x + inputWidth / 2 + ethGap;
-    const iconBaseY = wagerRowY - 5;
-    this.ethIconBaseY = iconBaseY;
-    if (this.ethIcon) {
-      this.ethIcon.setPosition(iconX, this.ethIconBaseY + this.ethIconFloatOffset);
+    if (this.wagerInput && this.wagerInput.displayObject) {
+      const iconX = this.wagerInput.displayObject.x + inputWidth / 2 + ethGap;
+      const iconBaseY = wagerRowY - 5;
+      this.ethIconBaseY = iconBaseY;
+      if (this.ethIcon) {
+        this.ethIcon.setPosition(iconX, this.ethIconBaseY + this.ethIconFloatOffset);
+      }
     }
     // Create button right-aligned with LevelPreview
     const levelPreviewRight = scrollListX + scrollListWidth + gap + previewWidth;
@@ -359,7 +372,7 @@ export class CreateGameState extends BaseState {
       const opponentLabelX = this.privateGameLabel.x;
       const opponentInputX = this.privateGameCheckbox.displayObject.x;
       this.opponentLabel.setPosition(opponentLabelX, opponentY);
-      this.opponentInput.displayObject.setPosition(opponentInputX + 150, opponentY);
+      this.opponentInput.displayObject.setPosition(opponentInputX + 232, opponentY);
     }
 
     // Redraw sky gradient background on resize

@@ -14,9 +14,10 @@ export class TitleState extends BaseState {
   private connectButton: ButtonComponent | null = null;
 
   protected onCreate(): void {
-    this.setupBackground();
-    this.showTitleScreen();
-    this.scene.scale.on('resize', this.handleResize, this);
+    this.handleResize(); // Run setup immediately
+    this.scene.time.delayedCall(450, () => {
+      this.scene.scale.on('resize', this.handleResize, this);
+    });
   }
 
   protected onUpdate(): void {
@@ -38,6 +39,7 @@ export class TitleState extends BaseState {
   }
 
   private handleResize(): void {
+    console.log("shit resizes!");
     // Kill all tweens and clear all pending timers/events
     this.scene.tweens.killAll();
     this.scene.time.removeAllEvents();

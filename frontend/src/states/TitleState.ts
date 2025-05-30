@@ -15,6 +15,7 @@ export class TitleState extends BaseState {
 
   protected onCreate(): void {
     this.handleResize(); // Run setup immediately
+    // we wait some time to prevent double resize
     this.scene.time.delayedCall(450, () => {
       this.scene.scale.on('resize', this.handleResize, this);
     });

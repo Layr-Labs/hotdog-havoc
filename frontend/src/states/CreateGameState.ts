@@ -10,6 +10,7 @@ import { GameEventEmitter, GameEventType } from './GameEvents';
 import { GameStateType } from './GameState';
 import { LabelComponent } from '../components/LabelComponent';
 import { InputField } from '../components/InputField';
+import { CheckboxComponent } from '../components/CheckboxComponent';
 
 export class CreateGameState extends BaseState {
   private bgImage: Phaser.GameObjects.Image | null = null;
@@ -28,6 +29,8 @@ export class CreateGameState extends BaseState {
   private ethIconBaseY: number = 0;
   private ethIconFloatOffset: number = 0;
   private ethIconTween: Phaser.Tweens.Tween | null = null;
+  private privateGameLabel: Phaser.GameObjects.Text | null = null;
+  private privateGameCheckbox: CheckboxComponent | null = null;
 
   protected async onCreate(): Promise<void> {
     // Sky gradient background
@@ -90,6 +93,20 @@ export class CreateGameState extends BaseState {
     this.wagerLabel.setOrigin(0, 0.5);
     this.scene.add.existing(this.wagerLabel);
     this.addGameObject(this.wagerLabel);
+
+    this.privateGameLabel = this.scene.add.text(0, 0, 'Private Game:', {
+      fontFamily: '"Press Start 2P", monospace',
+      fontSize: '16px',
+      color: '#fff',
+      align: 'left',
+    });
+    this.privateGameLabel.setOrigin(0, 0.5);
+    this.scene.add.existing(this.privateGameLabel);
+    this.addGameObject(this.privateGameLabel);
+
+    this.privateGameCheckbox = new CheckboxComponent(this.scene, 0, 0, 24, false);
+    this.scene.add.existing(this.privateGameCheckbox.displayObject);
+    this.addGameObject(this.privateGameCheckbox.displayObject);
 
     this.wagerInput = new InputField(this.scene);
     this.wagerInput.show({ width: 120, fontSize: 16, scrollFactor: 0 });
@@ -295,6 +312,17 @@ export class CreateGameState extends BaseState {
       this.createButton.show({ x: buttonX, y: wagerRowY });
     }
 
+    // Private Game label
+    if (this.privateGameLabel) {
+      this.privateGameLabel.setPosition(wagerLabelX, wagerRowY + 36);
+    }
+
+    if (this.privateGameCheckbox && this.privateGameLabel) {
+      const checkboxX = this.privateGameLabel.x + this.privateGameLabel.width + 16;
+      const checkboxY = this.privateGameLabel.y;
+      this.privateGameCheckbox.displayObject.setPosition(checkboxX, checkboxY);
+    }
+
     // Redraw sky gradient background on resize
     if (this.bgImage) {
       this.bgImage.destroy();
@@ -320,6 +348,8 @@ export class CreateGameState extends BaseState {
     if (this.wagerInput) this.wagerInput.destroy();
     if (this.createButton) this.createButton.destroy();
     if (this.ethIcon) this.ethIcon.destroy();
+    if (this.privateGameLabel) this.privateGameLabel.destroy();
+    if (this.privateGameCheckbox) this.privateGameCheckbox.destroy();
     if (this.resizeHandler) {
       this.scene.scale.off('resize', this.resizeHandler);
       this.resizeHandler = null;

@@ -40,7 +40,6 @@ export class TitleState extends BaseState {
   }
 
   private handleResize(): void {
-    console.log("shit resizes!");
     // Kill all tweens and clear all pending timers/events
     this.scene.tweens.killAll();
     this.scene.time.removeAllEvents();

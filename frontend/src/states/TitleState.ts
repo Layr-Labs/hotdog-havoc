@@ -103,15 +103,18 @@ export class TitleState extends BaseState {
           yoyo: true,
           repeat: -1
         });
-        this.showTitleScreenRest(scale);
       }
     });
+
+    // Start the rest of the animations immediately
+    this.showTitleScreenRest(scale);
   }
 
   private showTitleScreenRest(scale: number): void {
     // Add connect wallet button
     // Responsive font size: clamp between 16px and 24px based on width (1.5%)
-    const textY = this.titleImage!.y + (this.titleImage!.displayHeight / 2) + 40;
+    const titleFinalY = this.scene.scale.height * 0.25;
+    const textY = titleFinalY + (this.titleImage!.displayHeight / 2) + 40;
     const fontSize = Math.max(16, Math.min(24, Math.floor(this.scene.scale.width * 0.015)));
     this.connectButton = new ButtonComponent(
       this.scene,

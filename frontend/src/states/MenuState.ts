@@ -129,9 +129,11 @@ export class MenuState extends BaseState {
           yoyo: true,
           repeat: -1
         });
-        this.addMenuOptions(yFinal, scale);
       }
     });
+
+    // Start menu options animation immediately
+    this.addMenuOptions(yFinal, scale);
   }
 
   private addMenuOptions(yFinal: number, scale: number): void {
@@ -205,7 +207,6 @@ export class MenuState extends BaseState {
             data: { state: GameStateType.EDITOR }
           });
         }
-        // Add other menu option handlers here
       });
 
       this.menuOptionTexts.push(opt);

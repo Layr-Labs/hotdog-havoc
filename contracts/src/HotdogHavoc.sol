@@ -35,12 +35,22 @@ contract HotdogHavoc {
     }
 
     ////////////////////////////////////////////////////////////
+    // Team
+    //
+    // Each wallet has a team of 3 hotdogs - with unique names.
+    ////////////////////////////////////////////////////////////
+    struct Team {
+        string[] names;
+    }
+
+    ////////////////////////////////////////////////////////////
     // STORAGE
     ////////////////////////////////////////////////////////////
     address public taskMailbox;                          // the address where all of our offchain tasks go
     
     mapping(uint256 => Level) public levels;              // index of all levels
     mapping(address => uint256[]) private ownerLevels;    // index of all levels owned by an address
+    mapping(address => Team) private teams;               // index of the team owned by an address
     uint256 public levelCount = 0;                        // total number of levels created
     uint256 public blockCount = 0;                        // total number of blocks created
 
@@ -102,6 +112,41 @@ contract HotdogHavoc {
      */
     function getOwnerLevels(address owner) public view returns (uint256[] memory) {
         return ownerLevels[owner];
+    }
+
+    /**
+     * @notice Returns the array of hotdog names for a specific address's team
+     * @dev This function retrieves the team names for a given address from the teams mapping.
+     *      If the address has no team, it will return an empty array.
+     * @param player The address to get team names for
+     * @return An array of strings containing the hotdog names in the player's team
+     * @custom:security This function is public and can be called by anyone to view any address's team names
+     */
+    function getTeamNames(address player) public view returns (string[] memory) {
+        return teams[player].names;
+    }
+
+    /**
+     * @notice Sets the team names for the caller's team
+     * @dev This function allows a player to set their team's hotdog names.
+     *      The function requires exactly 4 names to be provided in the array.
+     *      Each name must be non-empty.
+     *      The function will revert if any of these conditions are not met.
+     * @param names Array of exactly 4 hotdog names for the team
+     * @custom:security This function can only be called by the team owner
+     * @custom:security This function will revert if array length is not 4 or if any name is empty
+     */
+    function setTeamNames(string[] memory names) public {
+        // Validate array length
+        require(names.length == 4, "Must provide exactly 4 names");
+
+        // Validate that all names are non-empty
+        for (uint i = 0; i < 4; i++) {
+            require(bytes(names[i]).length > 0, string(abi.encodePacked("Name ", i + 1, " cannot be empty")));
+        }
+
+        // Set the team names
+        teams[msg.sender].names = names;
     }
 
     /**

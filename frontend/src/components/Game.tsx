@@ -75,6 +75,7 @@ function preload(this: Phaser.Scene) {
   this.load.image('back', 'src/images/back.png');
   this.load.image('createGame', 'src/images/createGame.png');
   this.load.image('ethereum', 'src/images/ethereum.png');
+  this.load.image('hotdog-standing', 'src/images/hotdog-standing.png');
 }
 
 function create(this: Phaser.Scene) {

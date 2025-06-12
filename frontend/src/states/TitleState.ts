@@ -17,7 +17,7 @@ export class TitleState extends BaseState {
     this.handleResize(); // Run setup immediately
     // we wait some time to prevent double resize
     this.scene.time.delayedCall(450, () => {
-      this.scene.scale.on('resize', this.handleResize, this);
+    this.scene.scale.on('resize', this.handleResize, this);
     });
   }
 
@@ -122,28 +122,28 @@ export class TitleState extends BaseState {
       fontSize,
       0x1976d2, // darker blue
       async () => {
-        if (typeof window.ethereum !== 'undefined') {
-          try {
-            const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
-            if (accounts.length > 0) {
-              WalletStore.setAddress(accounts[0]);
+      if (typeof window.ethereum !== 'undefined') {
+        try {
+          const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+          if (accounts.length > 0) {
+            WalletStore.setAddress(accounts[0]);
               this.scene.time.delayedCall(100, () => {
-                GameEventEmitter.emit({
-                  type: GameEventType.WALLET_CONNECTED,
-                  data: { address: accounts[0] }
-                });
-                GameEventEmitter.emit({
-                  type: GameEventType.STATE_CHANGE,
-                  data: { state: GameStateType.MENU }
-                });
+            GameEventEmitter.emit({
+              type: GameEventType.WALLET_CONNECTED,
+              data: { address: accounts[0] }
+            });
+              GameEventEmitter.emit({
+                type: GameEventType.STATE_CHANGE,
+                data: { state: GameStateType.MENU }
               });
-            }
-          } catch (error) {
-            console.error('Failed to connect wallet:', error);
+            });
           }
-        } else {
-          alert('Please install MetaMask to use this feature');
+        } catch (error) {
+          console.error('Failed to connect wallet:', error);
         }
+      } else {
+        alert('Please install MetaMask to use this feature');
+      }
       }
     );
     // Start off-screen, animate in

@@ -235,4 +235,29 @@ export const getLevelBlocks = async (levelId: number): Promise<{x: number, y: nu
     console.error('Error getting level blocks:', error);
     throw error;
   }
+};
+
+// Set team names
+export const setTeamNames = async (names: string[]) => {
+  try {
+    const contract = await getContract();
+    const tx = await contract.setTeamNames(names);
+    await tx.wait();
+    return true;
+  } catch (error) {
+    console.error('Error setting team names:', error);
+    throw error;
+  }
+};
+
+// Get team names for a given address
+export const getTeamNames = async (address: string): Promise<string[]> => {
+  try {
+    const contract = await getContract();
+    const names = await contract.getTeamNames(address);
+    return names;
+  } catch (error) {
+    console.error('Error getting team names:', error);
+    throw error;
+  }
 }; 

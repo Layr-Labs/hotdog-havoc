@@ -137,7 +137,7 @@ export class MenuState extends BaseState {
   }
 
   private addMenuOptions(yFinal: number, scale: number): void {
-    const options = ['Join Game', 'Create Game', 'Level Editor'];
+    const options = ['Join Game', 'Create Game', 'Level Editor', 'Manage Team'];
     const startY = yFinal + (this.mainMenuImage?.displayHeight || 0) + 40;
     const spacing = 48;
 
@@ -205,6 +205,13 @@ export class MenuState extends BaseState {
           GameEventEmitter.emit({
             type: GameEventType.STATE_CHANGE,
             data: { state: GameStateType.EDITOR }
+          });
+        }
+
+        if (label === 'Manage Team') {
+          GameEventEmitter.emit({
+            type: GameEventType.STATE_CHANGE,
+            data: { state: GameStateType.MANAGE_TEAM }
           });
         }
       });

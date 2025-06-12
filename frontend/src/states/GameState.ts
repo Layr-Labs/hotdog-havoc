@@ -12,4 +12,5 @@ export enum GameStateType {
   GAME = 'game',
   EDITOR = 'editor',
   CREATE_GAME = 'create_game',
+  MANAGE_TEAM = 'manage_team'
 } 

@@ -1,8 +1,8 @@
 {
   "addresses": {
-    "taskMailbox": "0x4B7099FD879435a087C364aD2f9E7B3f94d20bBe"
+    "taskMailbox": ""
   },
   "chainInfo": {
-    "chainId": 31337
+    "chainId": 0
   }
 }

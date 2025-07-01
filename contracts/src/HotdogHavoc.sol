@@ -1,6 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.27;
 
+import "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
+
+using EnumerableSet for EnumerableSet.UintSet;
+
 ////////////////////////////////////////////////////////////
 // Hotdog Havoc
 //
@@ -44,6 +48,51 @@ contract HotdogHavoc {
     }
 
     ////////////////////////////////////////////////////////////
+    // HotDog
+    //
+    // A hotdog represents a player's character in the game. Each hotdog has
+    // a life value, a position on the map, and an ID that refers to the
+    // name in the team's names array.
+    ////////////////////////////////////////////////////////////
+    struct HotDog {
+        uint8 life;        // the current life/health of the hotdog
+        Block position;    // the current position of the hotdog on the map
+        uint8 hotdog_id;   // the ID that refers to the name in the team's names array
+    }
+
+    ////////////////////////////////////////////////////////////
+    // GameState
+    //
+    // Enum representing the current state of a game.
+    ////////////////////////////////////////////////////////////
+    enum GameState {
+        PENDING,    // game is created but not yet started
+        PLACING,    // players are placing their hotdogs on the map
+        ACTIVE,     // game is actively being played
+        COMPLETE    // game has finished
+    }
+
+    ////////////////////////////////////////////////////////////
+    // Game
+    //
+    // A game represents an active match between players. It contains
+    // all the information needed to track the game state, including
+    // player addresses, wager amount, level, destroyed blocks, hotdogs,
+    // and processed tasks.
+    ////////////////////////////////////////////////////////////
+    struct Game {
+        address[] players;                      // array of player addresses participating in the game
+        uint256 wagerAmount;                    // the amount wagered for this game
+        uint256 levelId;                        // the ID of the level being played
+        Block[] destroyedBlocks;                // list of blocks that have been destroyed during the game
+        mapping(address => HotDog[]) hotdogs;   // mapping of player address to their array of hotdogs
+        bytes32[] tasks;                        // array of task IDs processed by the AVS for each turn
+        address activePlayer;                   // the address of the player whose turn it currently is
+        GameState state;                        // the current state of the game
+        bool isPrivate;                         // whether the game can be joined by anyone other than current players
+    }
+
+    ////////////////////////////////////////////////////////////
     // STORAGE
     ////////////////////////////////////////////////////////////
     address public taskMailbox;                          // the address where all of our offchain tasks go
@@ -53,6 +102,11 @@ contract HotdogHavoc {
     mapping(address => Team) private teams;               // index of the team owned by an address
     uint256 public levelCount = 0;                        // total number of levels created
     uint256 public blockCount = 0;                        // total number of blocks created
+
+    // Game storage
+    mapping(uint256 => Game) public games;                       // index of all games by game ID
+    uint256 public gameCount = 0;                                // total number of games created
+    mapping(address => EnumerableSet.UintSet) private userGames; // games that a user is a player of
 
     ////////////////////////////////////////////////////////////
     // CONSTRUCTOR
@@ -65,6 +119,7 @@ contract HotdogHavoc {
     // EVENTS
     ////////////////////////////////////////////////////////////
     event LevelCreated(uint256 indexed levelId, address indexed owner, string name);
+    event GameCreated(uint256 indexed gameId, address indexed creator, uint256 levelId, uint256 wagerAmount, address[] players);
 
     ////////////////////////////////////////////////////////////
     // FUNCTIONS
@@ -159,5 +214,58 @@ contract HotdogHavoc {
      */
     function getLevelBlocks(uint256 levelId) public view returns (Block[] memory) {
         return levels[levelId].map;
+    }
+
+    /**
+     * @notice Creates a new game with the specified level, wager amount, and players
+     * @dev This function creates a new game and assigns it a unique ID. The game is stored
+     *      in the games mapping and indexed by the creator's address. The function adds the
+     *      caller and any provided players to the game's player list.
+     * @param levelId The ID of the level to play
+     * @param wagerAmount The amount to wager for this game
+     * @param players Array of additional player addresses to add to the game (can be empty)
+     * @return gameId The unique identifier of the newly created game
+     * @custom:security This function is public and can be called by anyone
+     */
+    function createGame(uint256 levelId, uint256 wagerAmount, address[] memory players) public payable returns (uint256 gameId) {
+        // Validate that the level exists
+        require(levelId < levelCount, "Level does not exist");
+        
+        // Validate wager amount is greater than 0
+        require(wagerAmount > 0, "Wager amount must be greater than 0");
+        
+        // Validate that the caller has sent at least the wager amount
+        require(msg.value >= wagerAmount, "Insufficient wager amount sent");
+
+        // Increment the game counter to get the new game ID
+        gameId = gameCount++;
+
+        // Create the new game
+        Game storage newGame = games[gameId];
+        
+        // Initialize game properties
+        newGame.wagerAmount = wagerAmount;
+        newGame.levelId = levelId;
+        newGame.activePlayer = msg.sender; // Set creator as first active player
+        newGame.state = GameState.PENDING;
+        newGame.isPrivate = players.length > 0; // Private if specific players are provided
+
+        // Add the creator to the players array
+        newGame.players.push(msg.sender);
+        
+        // Add any provided players to the game
+        for (uint256 i = 0; i < players.length; i++) {
+            newGame.players.push(players[i]);
+        }
+
+        // Add the game to each player's userGames set
+        for (uint256 i = 0; i < newGame.players.length; i++) {
+            userGames[newGame.players[i]].add(gameId);
+        }
+
+        // Emit the creation event
+        emit GameCreated(gameId, msg.sender, levelId, wagerAmount, newGame.players);
+
+        return gameId;
     }
 }

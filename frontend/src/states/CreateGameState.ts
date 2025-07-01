@@ -176,9 +176,63 @@ export class CreateGameState extends BaseState {
       'Create',
       16,
       0x27ae60,
-      () => {
+      async () => {
         if (!this.createButton || this.createButton.isDisabled()) return;
-        console.log('Create game with level', this.selectedLevelId, 'wager', this.wagerInput.getValue());
+        
+        try {
+          // Disable button during transaction
+          this.createButton.disable();
+          
+          // Get form data
+          const levelId = this.selectedLevelId;
+          const wagerAmount = this.wagerInput.getValue();
+          const isPrivate = this.privateGameCheckbox?.isChecked() || false;
+          const opponentAddress = this.opponentInput?.getValue() || '';
+          
+          if (levelId === null) {
+            alert('Please select a level first');
+            this.createButton.enable();
+            return;
+          }
+          
+          // Convert wager amount to wei
+          const wagerInWei = ethers.parseEther(wagerAmount);
+          
+          // Prepare players array
+          let players: string[] = [];
+          if (isPrivate && opponentAddress.trim()) {
+            // Validate opponent address
+            if (!ethers.isAddress(opponentAddress.trim())) {
+              alert('Please enter a valid opponent address');
+              this.createButton.enable();
+              return;
+            }
+            players = [opponentAddress.trim()];
+          }
+          
+          console.log('Creating game with:', {
+            levelId,
+            wagerAmount: wagerAmount,
+            wagerInWei: wagerInWei.toString(),
+            isPrivate,
+            players
+          });
+          
+          // Create the game
+          const result = await contractUtils.createGame(levelId, wagerInWei, players);
+          
+          // Show success alert with game ID
+          alert(`Game created successfully! Game ID: ${result.gameId.toString()}`);
+          
+          console.log('Game created:', result);
+          
+        } catch (error: any) {
+          console.error('Error creating game:', error);
+          alert(`Failed to create game: ${error.message}`);
+        } finally {
+          // Re-enable button
+          this.createButton.enable();
+        }
       },
       16,
       true
@@ -372,7 +426,9 @@ export class CreateGameState extends BaseState {
       const opponentLabelX = this.privateGameLabel.x;
       const opponentInputX = this.privateGameCheckbox.displayObject.x;
       this.opponentLabel.setPosition(opponentLabelX, opponentY);
-      this.opponentInput.displayObject.setPosition(opponentInputX + 232, opponentY);
+      if (this.opponentInput.displayObject) {
+        this.opponentInput.displayObject.setPosition(opponentInputX + 232, opponentY);
+      }
     }
 
     // Redraw sky gradient background on resize

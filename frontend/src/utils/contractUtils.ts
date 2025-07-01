@@ -254,10 +254,104 @@ export const setTeamNames = async (names: string[]) => {
 export const getTeamNames = async (address: string): Promise<string[]> => {
   try {
     const contract = await getContract();
-    const names = await contract.getTeamNames(address);
-    return names;
+    return await contract.getTeamNames(address);
   } catch (error) {
     console.error('Error getting team names:', error);
+    throw error;
+  }
+};
+
+// Create a new game
+export const createGame = async (levelId: number, wagerAmount: bigint, players: string[] = []) => {
+  let contract;
+  try {
+    console.log('Getting contract...');
+    contract = await getContract();
+    console.log('Contract obtained:', contract.address);
+    
+    console.log('Creating game with:', {
+      levelId,
+      wagerAmount: wagerAmount.toString(),
+      playerCount: players.length,
+      players
+    });
+
+    // Call createGame on the contract
+    console.log('Preparing transaction...');
+    try {
+      console.log('Checking contract method:', {
+        hasCreateGame: !!contract.createGame,
+        interface: contract.interface.format(),
+        address: contract.address
+      });
+      
+      console.log('Estimating gas...');
+      const gasEstimate = await contract.createGame.estimateGas(levelId, wagerAmount, players, { value: wagerAmount });
+      console.log('Gas estimate:', gasEstimate.toString());
+      
+      console.log('Sending transaction...');
+      const tx = await contract.createGame(levelId, wagerAmount, players, { value: wagerAmount });
+      console.log('Transaction sent:', tx.hash);
+      
+      // Wait for transaction to be mined
+      console.log('Waiting for transaction to be mined...');
+      const receipt = await tx.wait();
+      console.log('Transaction receipt:', receipt);
+      
+      // Find the GameCreated event in the receipt
+      const event = receipt.logs.find(
+        (log: any) => log.fragment && log.fragment.name === 'GameCreated'
+      );
+
+      if (event) {
+        return {
+          gameId: event.args[0],
+          creator: event.args[1],
+          levelId: event.args[2],
+          wagerAmount: event.args[3],
+          players: event.args[4]
+        };
+      }
+
+      throw new Error('GameCreated event not found in transaction receipt');
+    } catch (txError: any) {
+      console.error('Transaction error details:', {
+        code: txError.code,
+        message: txError.message,
+        data: txError.data,
+        error: txError,
+        stack: txError.stack
+      });
+      throw txError;
+    }
+  } catch (error: any) {
+    console.error('Error creating game:', error);
+    
+    // Check for specific error types
+    if (error.code === 'ACTION_REJECTED') {
+      throw new Error('Transaction was rejected by user');
+    }
+    
+    if (error.code === 'INSUFFICIENT_FUNDS') {
+      throw new Error('Insufficient funds for gas * price + value');
+    }
+    
+    if (error.code === 'UNPREDICTABLE_GAS_LIMIT') {
+      console.error('Gas estimation failed. This usually means the transaction will fail. Details:', error);
+      throw new Error('Transaction would fail. Check console for details.');
+    }
+    
+    // If it's a revert, try to decode the reason
+    if (error.data && contract) {
+      try {
+        const decodedError = contract.interface.parseError(error.data);
+        console.error('Transaction reverted with reason:', decodedError);
+        throw new Error(`Transaction reverted: ${decodedError?.name || 'Unknown reason'}`);
+      } catch (e) {
+        console.error('Could not decode revert reason:', e);
+      }
+    }
+    
     throw error;
   }
 }; 
